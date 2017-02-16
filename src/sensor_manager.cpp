@@ -36,8 +36,10 @@ static void json_error(Document &doc) {
 SensorManager::SensorManager()
 :	is_running(false),
 	zyre_thread() {
-	// TODO Auto-generated constructor stub
 
+	ENTER();
+
+	EXIT();
 }
 
 /*public*/
@@ -89,6 +91,8 @@ void SensorManager::remove_sensor_all() {
 
 	ENTER();
 
+	Mutex::Autolock lock(sensor_lock);
+
 	for (auto itr: sensors) {
 		Sensor *sensor = itr.second;
 		SAFE_DELETE(sensor);
@@ -101,6 +105,8 @@ void SensorManager::remove_sensor_all() {
 // 同じnode_uuidを持つセンサーをすべて削除する
 void SensorManager::remove_sensors(const std::string &node_uuid) {
 	ENTER();
+
+	Mutex::Autolock lock(sensor_lock);
 
 	for (auto itr = sensors.find(node_uuid); itr != sensors.end(); itr++) {
 		Sensor *sensor = itr->second;
@@ -138,6 +144,8 @@ void SensorManager::remove_sensor_locked(
 void SensorManager::remove_sensor(
 	const std::string &node_uuid, const std::string &sensor_uuid) {
 
+	Mutex::Autolock lock(sensor_lock);
+
 	remove_sensor_locked(node_uuid, sensor_uuid);
 }
 
@@ -147,6 +155,8 @@ void SensorManager::remove_sensor(
 void SensorManager::add_sensor(const std::string &node_uuid, Sensor *sensor) {
 
 	ENTER();
+
+	Mutex::Autolock lock(sensor_lock);
 
 	const std::string &sensor_uuid = sensor ? sensor->uuid() : "";
 	// 同じuuidのノードで同じセンサー名のものがあれば削除する

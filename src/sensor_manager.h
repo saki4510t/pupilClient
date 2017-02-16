@@ -20,6 +20,7 @@ class SensorManager {
 private:
 	std::multimap<std::string, Sensor*> sensors;
 	volatile bool is_running;
+	mutable Mutex sensor_lock;
 	pthread_t zyre_thread;
 	static void *zyre_thread_func(void *vptr_args);
 protected:
