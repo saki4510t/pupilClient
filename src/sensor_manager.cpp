@@ -5,6 +5,17 @@
  *      Author: saki
  */
 
+#if 1	// set 0 if you need debug log, otherwise set 1
+	#ifndef LOG_NDEBUG
+		#define LOG_NDEBUG
+	#endif
+	#undef USE_LOGALL
+#else
+//	#define USE_LOGALL
+	#undef LOG_NDEBUG
+	#undef NDEBUG
+#endif
+
 #include "utilbase.h"
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
@@ -27,7 +38,7 @@ static void json_error(Document &doc) {
 		size_t offset = doc.GetErrorOffset();
 		ParseErrorCode code = doc.GetParseError();
 		const char *err = GetParseError_En(code);
-		printf("json error:%lu:%d(%s)\n", offset, code, err);
+		LOGE("json error:%lu:%d(%s)\n", offset, code, err);
 	}
 }
 
@@ -185,7 +196,7 @@ int SensorManager::handle_join(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *group = zyre_event_group(event);
-	printf("join to %s\n", group);
+	LOGD("join to %s\n", group);
 
 	RETURN(0, int);
 }
@@ -224,7 +235,7 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 	}
 
 	if (LIKELY(sensor_name && sensor_uuid && notify && command && data)) {
-		printf("uuid=%s\nname=%s\nnnotify=%s\ncommand=%s\ndata=%s\n",
+		LOGD("uuid=%s\nname=%s\nnnotify=%s\ncommand=%s\ndata=%s\n",
 			sensor_uuid, sensor_name, notify, command, data);
 		Sensor *sensor = new Sensor(sensor_uuid, sensor_name, notify, command, data);
 		add_sensor(node_uuid, sensor);
@@ -263,7 +274,7 @@ int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 		zmsg_print(msg);
 		char *str = zmsg_popstr(msg);
 		if (str) {
-			printf("msg=%s\n", str);
+			LOGV("msg=%s\n", str);
 			Document doc;
 			doc.Parse(str);
 			if (LIKELY(!doc.HasParseError())) {
@@ -297,14 +308,14 @@ int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *group = zyre_event_group(event);
-	printf("shout to %s\n", group);
+	LOGD("shout to %s\n", group);
 
 	zmsg_t *msg = zyre_event_get_msg(event);
 	if (msg) {
 		zmsg_print(msg);
 		char *str = zmsg_popstr(msg);
 		if (str) {
-			printf("msg=%s", str);
+			LOGD("msg=%s", str);
 			zstr_free(&str);
 		}
 		zmsg_destroy(&msg);
@@ -320,7 +331,7 @@ int SensorManager::handle_leave(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *group = zyre_event_group(event);
-	printf("leave from %s\n", group);
+	LOGD("leave from %s\n", group);
 
 	remove_sensors(node_uuid);
 
@@ -370,10 +381,10 @@ void SensorManager::zyre_run() {
 						const char *event_type = zyre_event_type(event);
 						const char *node_uuid = zyre_event_peer_uuid(event);
 						const char *node_name = zyre_event_peer_name(event);
-						printf("-----------------\n");
-						printf("NODE_EVENT_TYPE: %s\n", event_type);
-						printf("NODE_UUID      : %s\n", node_uuid);
-						printf("NODE_NAME      : %s\n", node_name);
+						LOGI("-----------------\n");
+						LOGI("NODE_EVENT_TYPE: %s\n", event_type);
+						LOGI("NODE_UUID      : %s\n", node_uuid);
+						LOGI("NODE_NAME      : %s\n", node_name);
 						if (streq(event_type, "ENTER")) {
 							handle_enter(node, event, node_uuid, node_name);
 						} else if (streq(event_type, "JOIN")) {

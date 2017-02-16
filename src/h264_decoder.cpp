@@ -5,6 +5,17 @@
  *      Author: saki
  */
 
+#if 1	// set 0 if you need debug log, otherwise set 1
+	#ifndef LOG_NDEBUG
+		#define LOG_NDEBUG
+	#endif
+	#undef USE_LOGALL
+#else
+//	#define USE_LOGALL
+	#undef LOG_NDEBUG
+	#undef NDEBUG
+#endif
+
 #include "utilbase.h"
 
 #include "h264_decoder.h"
