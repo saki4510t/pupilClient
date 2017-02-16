@@ -17,13 +17,6 @@
 #endif
 
 #include <stdio.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <map>
-#include <string>
-
-#include <zyre.h>
-#include <czmq.h>
 
 #include "utilbase.h"
 #include "app_const.h"
@@ -34,6 +27,8 @@
 //================================================================================
 
 int main(int argc, const char* argv[]) {
+
+	ENTER();
 
 	av_register_all();
 
@@ -48,4 +43,6 @@ int main(int argc, const char* argv[]) {
 		if (c != EOF) break;
 	}
 	manager.stop();
+
+	RETURN(0, int);
 }
