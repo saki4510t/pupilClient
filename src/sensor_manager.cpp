@@ -113,14 +113,15 @@ void SensorManager::remove_sensors(const std::string &node_uuid) {
 	EXIT();
 }
 
-// センサーを追加する。
-// 同じnode_uuidで同じsensor_uuidのセンサーがあれば削除してから追加する
-void SensorManager::add_sensor(const std::string &node_uuid, Sensor *sensor) {
+// 指定したnode_uuidで指定したsensor_uuidを持つセンサーを削除する
+// こっちは排他制御した状態で呼ぶ。
+// 排他制御をしてないないときは#remove_sensorを呼ぶ
+/*protected*/
+void SensorManager::remove_sensor_locked(
+	const std::string &node_uuid, const std::string &sensor_uuid) {
 
 	ENTER();
 
-	const std::string &sensor_uuid = sensor->uuid();
-	// 同じuuidのノードで同じセンサー名のものがあれば削除する
 	for (auto itr = sensors.find(node_uuid); itr != sensors.end(); itr++) {
 		Sensor *sensor = itr->second;
 		if (sensor && (sensor->uuid() == sensor_uuid)) {
@@ -128,6 +129,29 @@ void SensorManager::add_sensor(const std::string &node_uuid, Sensor *sensor) {
 			sensors.erase(itr);
 		}
 	}
+
+	EXIT();
+}
+
+// 指定したnode_uuidで指定したsensor_uuidを持つセンサーを削除する
+/*protected*/
+void SensorManager::remove_sensor(
+	const std::string &node_uuid, const std::string &sensor_uuid) {
+
+	remove_sensor_locked(node_uuid, sensor_uuid);
+}
+
+// センサーを追加する。
+// 同じnode_uuidで同じsensor_uuidのセンサーがあれば削除してから追加する
+/*protected*/
+void SensorManager::add_sensor(const std::string &node_uuid, Sensor *sensor) {
+
+	ENTER();
+
+	const std::string &sensor_uuid = sensor ? sensor->uuid() : "";
+	// 同じuuidのノードで同じセンサー名のものがあれば削除する
+	remove_sensor_locked(node_uuid, sensor_uuid);
+	//
 	if (sensor) {
 		sensors.insert(std::make_pair(node_uuid, sensor));
 	}
@@ -163,15 +187,15 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *sensor_name = NULL, *sensor_uuid, *notify = NULL, *command = NULL, *data = NULL;
-	Value::ConstMemberIterator itr = doc.FindMember("sensor_name");
-	if (itr != doc.MemberEnd()) {
-		const Value &v = itr->value;
-		sensor_name = v.GetString();
-	}
-	itr = doc.FindMember("sensor_uuid");
+	Value::ConstMemberIterator itr = doc.FindMember("sensor_uuid");
 	if (itr != doc.MemberEnd()) {
 		const Value &v = itr->value;
 		sensor_uuid = v.GetString();
+	}
+	itr = doc.FindMember("sensor_name");
+	if (itr != doc.MemberEnd()) {
+		const Value &v = itr->value;
+		sensor_name = v.GetString();
 	}
 	itr = doc.FindMember("notify_endpoint");
 	if (itr != doc.MemberEnd()) {
@@ -188,7 +212,8 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 		const Value &v = itr->value;
 		data = v.GetString();
 	}
-	if (sensor_name && sensor_uuid && notify && command && data) {
+
+	if (LIKELY(sensor_name && sensor_uuid && notify && command && data)) {
 		printf("uuid=%s\nname=%s\nnnotify=%s\ncommand=%s\ndata=%s\n",
 			sensor_uuid, sensor_name, notify, command, data);
 		Sensor *sensor = new Sensor(sensor_uuid, sensor_name, notify, command, data);
@@ -204,7 +229,15 @@ int SensorManager::handle_whisper_detach(zyre_t *zyre, zyre_event_t *event,
 
 	ENTER();
 
-	remove_sensors(node_uuid);
+	const char *sensor_uuid = NULL;
+	Value::ConstMemberIterator itr = doc.FindMember("sensor_uuid");
+	if (itr != doc.MemberEnd()) {
+		const Value &v = itr->value;
+		sensor_uuid = v.GetString();
+	}
+	if (LIKELY(sensor_uuid)) {
+		remove_sensor(node_uuid, sensor_uuid);
+	}
 
 	RETURN(0, int);
 }

@@ -22,4 +22,9 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/error/en.h>
 
+#include "mutex.h"
+#include "condition.h"
+
+using namespace android;
+
 #endif /* APP_CONST_H_ */

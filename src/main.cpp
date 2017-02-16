@@ -20,18 +20,19 @@
 #include "sensor_manager.h"
 #include "h264_decoder.h"
 
-using namespace serenegiant;
-using namespace serenegiant::sensor;
-
 //================================================================================
 
 int main(int argc, const char* argv[]) {
 
 	av_register_all();
-	SensorManager manager;
+
+	// zyre経由で送られてくるセンサー情報をハンドリングする
+
+	serenegiant::sensor::SensorManager manager;
 
 	manager.start();
 	for ( ; ; ) {
+		// 何か入力するまで実行する
 		char c = getchar();
 		if (c != EOF) break;
 	}

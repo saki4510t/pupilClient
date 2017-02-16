@@ -25,7 +25,10 @@ private:
 protected:
 	void remove_sensor_all();
 	void remove_sensors(const std::string &node_uuid);
+	void remove_sensor(const std::string &node_uuid, const std::string &sensor_uuid);
+	void remove_sensor_locked(const std::string &node_uuid, const std::string &sensor_uuid);
 	void add_sensor(const std::string &node_uuid, Sensor *sensor);
+
 	int handle_enter(zyre_t *zyre, zyre_event_t *event,
 		const char *node_uuid, const char *node_name);
 	int handle_join(zyre_t *zyre, zyre_event_t *event,
