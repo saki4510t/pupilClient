@@ -38,7 +38,7 @@ static void json_error(Document &doc) {
 		size_t offset = doc.GetErrorOffset();
 		ParseErrorCode code = doc.GetParseError();
 		const char *err = GetParseError_En(code);
-		LOGE("json error:%lu:%d(%s)\n", offset, code, err);
+		LOGE("json error:%lu:%d(%s)", offset, code, err);
 	}
 }
 
@@ -196,7 +196,7 @@ int SensorManager::handle_join(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *group = zyre_event_group(event);
-	LOGD("join to %s\n", group);
+	LOGD("join to %s", group);
 
 	RETURN(0, int);
 }
@@ -235,7 +235,7 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 	}
 
 	if (LIKELY(sensor_name && sensor_uuid && notify && command && data)) {
-		LOGD("uuid=%s\nname=%s\nnnotify=%s\ncommand=%s\ndata=%s\n",
+		LOGD("uuid=%s\nname=%s\nnnotify=%s\ncommand=%s\ndata=%s",
 			sensor_uuid, sensor_name, notify, command, data);
 		Sensor *sensor = new Sensor(sensor_uuid, sensor_name, notify, command, data);
 		add_sensor(node_uuid, sensor);
@@ -274,7 +274,7 @@ int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 		zmsg_print(msg);
 		char *str = zmsg_popstr(msg);
 		if (str) {
-			LOGV("msg=%s\n", str);
+			LOGV("msg=%s", str);
 			Document doc;
 			doc.Parse(str);
 			if (LIKELY(!doc.HasParseError())) {
@@ -308,7 +308,7 @@ int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *group = zyre_event_group(event);
-	LOGD("shout to %s\n", group);
+	LOGD("shout to %s", group);
 
 	zmsg_t *msg = zyre_event_get_msg(event);
 	if (msg) {
@@ -331,7 +331,7 @@ int SensorManager::handle_leave(zyre_t *zyre, zyre_event_t *event,
 	ENTER();
 
 	const char *group = zyre_event_group(event);
-	LOGD("leave from %s\n", group);
+	LOGD("leave from %s", group);
 
 	remove_sensors(node_uuid);
 
@@ -381,10 +381,10 @@ void SensorManager::zyre_run() {
 						const char *event_type = zyre_event_type(event);
 						const char *node_uuid = zyre_event_peer_uuid(event);
 						const char *node_name = zyre_event_peer_name(event);
-						LOGI("-----------------\n");
-						LOGI("NODE_EVENT_TYPE: %s\n", event_type);
-						LOGI("NODE_UUID      : %s\n", node_uuid);
-						LOGI("NODE_NAME      : %s\n", node_name);
+						LOGI("-----------------");
+						LOGI("NODE_EVENT_TYPE: %s", event_type);
+						LOGI("NODE_UUID      : %s", node_uuid);
+						LOGI("NODE_NAME      : %s", node_name);
 						if (streq(event_type, "ENTER")) {
 							handle_enter(node, event, node_uuid, node_name);
 						} else if (streq(event_type, "JOIN")) {
@@ -410,7 +410,7 @@ void SensorManager::zyre_run() {
 		zyre_leave(node, target_group);
 		zyre_stop(node);
 	} else {
-		LOGE("could not start zyre node\n");
+		LOGE("could not start zyre node");
 	}
 	zyre_destroy(&node);
 }
