@@ -24,7 +24,7 @@ sensor_type_t get_sensor_type(const std::string &sensor_type_str) {
 		result = SENSOR_MIC;
 	} else if (sensor_type_str == "imu") {
 		result = SENSOR_IMU;
-	} else if (sensor_type_str == "uvc") {
+	} else if (sensor_type_str == "video") {
 		result = SENSOR_UVC;
 	}
 
@@ -50,6 +50,22 @@ subject_type_t get_subject_type(const std::string &subject_type_str) {
 	}
 
 	RETURN(result, subject_type_t);
+}
+
+const std::string get_request_type_str(const request_type_t request) {
+	ENTER();
+
+	std::string result;
+	switch (request) {
+	case REQUEST_REFRESH_CONTROLS:
+		result = "refresh_controls";
+		break;
+	case REQUEST_SET_CONTROL_VALUE:
+		result = "set_control_value";
+		break;
+	}
+
+	RET(result);
 }
 
 //================================================================================

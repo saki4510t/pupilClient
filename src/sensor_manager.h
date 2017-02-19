@@ -32,6 +32,7 @@ protected:
 	void remove_sensors(const std::string &node_uuid);
 	void remove_sensor(const std::string &node_uuid, const std::string &sensor_uuid);
 	void remove_sensor_locked(const std::string &node_uuid, const std::string &sensor_uuid);
+	Sensor *get_sensor(const std::string &node_uuid, const std::string &sensor_uuid);
 	void add_sensor(const std::string &node_uuid, Sensor *sensor);
 
 	int handle_enter(zyre_t *zyre, zyre_event_t *event,

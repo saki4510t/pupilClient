@@ -29,6 +29,8 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 :	sensor_type(_sensor_type),
 	sensor_uuid(uuid),
 	sensor_name(name),
+	sensor_identity(sensor_uuid.c_str()),
+	is_running(false),
 	zmq_context(NULL),
 	command_socket(NULL),
 	notify_socket(NULL),
@@ -178,6 +180,7 @@ int Sensor::start(void *_zmq_context,
 
 		} else {
 			LOGE("zmq context / command / notify / data should not be null");
+			goto err;
 		}
 
 		is_running = true;
@@ -186,6 +189,8 @@ int Sensor::start(void *_zmq_context,
 		if (UNLIKELY(result)) {
 			stop();
 		}
+	} else {
+		LOGD("already running:uuid=%s", sensor_uuid.c_str());
 	}
 
 	RETURN(result, int);
@@ -323,6 +328,9 @@ void Sensor::zmq_run() {
 	items[1].socket = data_socket;
 	items[1].events = ZMQ_POLLIN;
 
+	int cnt = 0;
+	bool need_refresh_controls = true;
+	need_refresh_controls = requestRefreshControls();
 	for ( ; isRunning() ; ) {
 		int ix = zmq_poll(items, 2, 100);
 		if (ix > 0) {
@@ -335,10 +343,122 @@ void Sensor::zmq_run() {
 				receive_data();
 			}
 		}
+		if (((++cnt % 100) == 0) && need_refresh_controls) {
+			need_refresh_controls = requestRefreshControls();
+		}
 	}
 	is_running = false;
 
 	EXIT();
+}
+
+/*protected*/
+int Sensor::create_payload(Writer<StringBuffer> &writer) {
+	ENTER();
+
+	// do nothing
+
+	RETURN(0, int);
+}
+
+/*protected*/
+int Sensor::create_payload(Writer<StringBuffer> &writer, const request_type_t &request) {
+	ENTER();
+
+	int result = -1;
+	std::string request_str = get_request_type_str(request);
+	if (!request_str.empty()) {
+		writer.String("action");
+		writer.String(request_str.c_str());
+		result = 0;
+	}
+
+	RETURN(result, int);
+}
+
+static void zmq_free_function(void *_data, void *hint) {
+	ENTER();
+
+	uint8_t *data = (uint8_t *)_data;
+	SAFE_DELETE_ARRAY(data);
+
+	EXIT();
+}
+
+/*protected*/
+int Sensor::send(const std::string &msg_str, const int &flag) {
+	ENTER();
+
+	const char *msg_chars = msg_str.c_str();
+	const size_t size = strlen(msg_chars);
+	LOGV("message=%s", msg_chars);
+	int result = send((uint8_t *)msg_chars, size, flag);
+
+	RETURN(result, int);
+}
+
+int Sensor::send(const uint8_t *_msg_bytes, const size_t &size, const int &flag) {
+	ENTER();
+
+	int result = -1;
+	if (LIKELY(_msg_bytes && size)) {
+		if (LIKELY(command_socket)) {
+			// copy message bytes
+			uint8_t *msg_bytes = new uint8_t[size];
+			if (LIKELY(msg_bytes)) {
+				memcpy(msg_bytes, _msg_bytes, size);
+				zmq_msg_t msg;
+				result = zmq_msg_init_data(&msg, msg_bytes, size, zmq_free_function, NULL);
+				if (LIKELY(!result)) {
+					int bytes = zmq_msg_send(&msg, command_socket, flag);
+					result = bytes != (int)size;
+					if (UNLIKELY(result)) {
+						zmq_msg_close(&msg);
+						LOGE("zmq_msg_send failed, errno=%d", errno);
+					}
+				} else {
+					SAFE_DELETE_ARRAY(msg_bytes);
+					LOGE("zmq_msg_init_data failed, errno=%d", errno);
+				}
+			} else {
+				LOGE("failed to copy message bytes, errno=%d", errno);
+			}
+		} else {
+			LOGE("command socket is already destroyed or not start");
+		}
+	} else {
+		LOGV("empty message, do nothing.");
+		result = 0;
+	}
+
+	RETURN(result, int);
+}
+
+
+int Sensor::requestRefreshControls() {
+	ENTER();
+
+	int result = -1;
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+
+	// create payload
+	writer.StartObject();
+	{
+		result = create_payload(writer, REQUEST_REFRESH_CONTROLS);
+	}
+	writer.EndObject();
+
+	if (LIKELY(!result)) {
+		// send sensor identity as first part with more flag
+		result = send((const uint8_t *)sensor_identity, strlen(sensor_identity), ZMQ_SNDMORE);
+		if (LIKELY(!result)) {
+			// send actual payload
+			result = send(buffer.GetString());
+		}
+	}
+
+	RETURN(result, int);
 }
 
 }	// namespace sensor

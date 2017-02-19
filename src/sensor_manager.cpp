@@ -169,6 +169,27 @@ void SensorManager::remove_sensor(
 	remove_sensor_locked(node_uuid, sensor_uuid);
 }
 
+// 指定したnode_uuidで指定したsensor_uuidを持つセンサーを取得する
+/*protected*/
+Sensor *SensorManager::get_sensor(
+	const std::string &node_uuid, const std::string &sensor_uuid) {
+
+	ENTER();
+
+	Sensor *result = NULL;
+	Mutex::Autolock lock(sensor_lock);
+
+	for (auto itr = sensors.find(node_uuid); itr != sensors.end(); itr++) {
+		Sensor *sensor = itr->second;
+		if (sensor && (sensor->uuid() == sensor_uuid)) {
+			result = sensor;
+			break;
+		}
+	}
+
+	RET(result);
+}
+
 // センサーを追加する。
 // 同じnode_uuidで同じsensor_uuidのセンサーがあれば削除してから追加する
 /*protected*/
@@ -216,6 +237,7 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 
 	ENTER();
 
+	int result = -1;
 	const char *sensor_name = NULL, *sensor_uuid = NULL, *sensor_type = NULL;
 	const char *notify = NULL, *command = NULL, *data = NULL;
 	Value::ConstMemberIterator itr = doc.FindMember("sensor_uuid");
@@ -253,27 +275,38 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 	if (LIKELY(sensor_uuid && sensor_name && sensor_type && notify && command && data)) {
 		LOGD("uuid=%s\nname=%s\ntype=%s\nnnotify=%s\ncommand=%s\ndata=%s",
 			sensor_uuid, sensor_name, sensor_type, notify, command, data);
-		Sensor *sensor = NULL;
-		switch (get_sensor_type(sensor_type)) {
-		case SENSOR_MIC:
-			sensor = new AudioSensor(sensor_uuid, sensor_name);
-			break;
-		case SENSOR_IMU:
-			sensor = new IMUSensor(sensor_uuid, sensor_name);
-			break;
-		case SENSOR_UVC:
-			sensor = new UVCSensor(sensor_uuid, sensor_name);
-			break;
-		default:
-			LOGE("unknown sensor type:%s", sensor_type);
+		Sensor *sensor = get_sensor(node_uuid, sensor_uuid);
+		if (!sensor) {
+			switch (get_sensor_type(sensor_type)) {
+			case SENSOR_MIC:
+				sensor = new AudioSensor(sensor_uuid, sensor_name);
+				break;
+			case SENSOR_IMU:
+				sensor = new IMUSensor(sensor_uuid, sensor_name);
+				break;
+			case SENSOR_UVC:
+				sensor = new UVCSensor(sensor_uuid, sensor_name);
+				break;
+			default:
+				sensor = NULL;
+				break;
+			}
+			if (sensor) {
+				add_sensor(node_uuid, sensor);
+				sensor->start(zmq_context, notify, command, data);
+				result = 0;
+			} else {
+				LOGE("unknown sensor type:%s", sensor_type);
+			}
+		} else {
+			LOGV("sensor is already attached");
+			result = 0;
 		}
-		if (sensor) {
-			add_sensor(node_uuid, sensor);
-			sensor->start(zmq_context, notify, command, data);
-		}
+	} else {
+		LOGE("unexpected attach payload");
 	}
 
-	RETURN(0, int);
+	RETURN(result, int);
 }
 
 /*protected*/
@@ -351,6 +384,27 @@ int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 		char *str = zmsg_popstr(msg);
 		if (str) {
 			LOGD("msg=%s", str);
+			rapidjson::Document doc;
+			doc.Parse(str);
+			if (LIKELY(!doc.HasParseError())) {
+				const char *subject = json_get_string(doc, "subject");
+				if (subject) {
+					switch (get_subject_type(subject)) {
+					case SUBJECT_ATTACH:
+						handle_whisper_attach(zyre, event, node_uuid, node_name, doc);
+						break;
+					case SUBJECT_DETACH:
+						handle_whisper_detach(zyre, event, node_uuid, node_name, doc);
+						break;
+					default:
+						LOGE("unknown subject type:%s", subject);
+					}
+				} else {
+					LOGE("missing subject field");
+				}
+			} else {
+				json_error(doc);
+			}
 			zstr_free(&str);
 		}
 		zmsg_destroy(&msg);

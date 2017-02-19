@@ -29,6 +29,7 @@ private:
 	const sensor_type_t sensor_type;
 	const std::string sensor_uuid;
 	const std::string sensor_name;
+	const char *sensor_identity;	// = sensor_uuid.c_str()
 
 	std::string command_endpoint;
 	std::string notify_endpoint;
@@ -48,6 +49,11 @@ protected:
 	int receive_data();
 	virtual int on_receive_notify(zmq_msg_t &msg) = 0;
 	virtual int on_receive_data(const publish_header_t &header, zmq_msg_t &msg) = 0;
+	int create_payload(Writer<StringBuffer> &writer);
+	int create_payload(Writer<StringBuffer> &writer, const request_type_t &request);
+	int send(const std::string &msg_str, const int &flag = 0);
+	int send(const uint8_t *msg_bytes, const size_t &size, const int &flag = 0);
+	int requestRefreshControls();
 public:
 	Sensor(const sensor_type_t &sensor_type, const char *uuid, const char *name);
 	virtual ~Sensor();

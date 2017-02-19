@@ -10,7 +10,7 @@
 
 #include "app_const.h"
 
-typedef enum _sensor_type {
+typedef enum sensor_type {
 	SENSOR_UNKNWON = 0,
 	SENSOR_MIC,
 	SENSOR_IMU,
@@ -27,9 +27,15 @@ typedef enum _subject_type {
 
 } subject_type_t;
 
+typedef enum request_type {
+	REQUEST_REFRESH_CONTROLS = 0,
+	REQUEST_SET_CONTROL_VALUE = 1,
+} request_type_t;
+
 extern void json_error(rapidjson::Document &doc);
 extern sensor_type_t get_sensor_type(const std::string &sensor_type_str);
 extern subject_type_t get_subject_type(const std::string &subject_type_str);
+extern const std::string get_request_type_str(const request_type_t request);
 
 extern const enum rapidjson::Type json_get_type(rapidjson::Document &doc, const char *name);
 extern const char *json_get_string(rapidjson::Document &doc, const char *name);
