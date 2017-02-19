@@ -37,7 +37,7 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 
 	ENTER();
 
-	printf("Sensor#Constructor\n");
+	LOGI("Sensor#Constructor");
 
 	EXIT();
 }
@@ -45,7 +45,8 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 Sensor::~Sensor() {
 	ENTER();
 
-	printf("Sensor#Destructor\n");
+	LOGI("Sensor#Destructor");
+	stop();
 
 	EXIT();
 }
@@ -108,6 +109,8 @@ int Sensor::start(void *_zmq_context,
 			command_endpoint = command;
 			notify_endpoint = notify;
 			data_endpoint = data;
+			const char *subscription = sensor_uuid.c_str();
+			const int subscription_size = strlen(subscription);
 
 			command_socket = zmq_socket(_zmq_context, ZMQ_PUSH);
 			if (LIKELY(command_socket)) {
@@ -131,15 +134,16 @@ int Sensor::start(void *_zmq_context,
 				if (UNLIKELY(result)) {
 					goto err;
 				}
-				result = zmq_connect(notify_socket, command);
+				result = zmq_connect(notify_socket, notify);
 				if (UNLIKELY(result)) {
 
 					LOGE("failed to connect to notify:errno=%d", errno);
 					goto err;
 				}
-				result = zmq_setsockopt(command_socket, ZMQ_SUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
+				result = zmq_setsockopt(notify_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
 				if (UNLIKELY(result)) {
-					LOGE("failed to set subscription");
+					LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
+//					goto err;
 				}
 			} else {
 				LOGE("failed to create notify socket:errno=%d", errno);
@@ -154,16 +158,17 @@ int Sensor::start(void *_zmq_context,
 					data_socket = NULL;
 					goto err;
 				}
-				result = zmq_connect(data_socket, command);
+				result = zmq_connect(data_socket, data);
 				if (UNLIKELY(result)) {
 					zmq_close(data_socket);
 					data_socket = NULL;
 					LOGE("failed to connect to data:errno=%d", errno);
 					goto err;
 				}
-				result = zmq_setsockopt(data_socket, ZMQ_SUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
+				result = zmq_setsockopt(data_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
 				if (UNLIKELY(result)) {
-					LOGE("failed to set subscription");
+					LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
+//					goto err;
 				}
 			} else {
 				LOGE("failed to create data socket:errno=%d", errno);
@@ -211,10 +216,12 @@ void Sensor::zmq_stop() {
 
 	if (zmq_context) {
 		if (data_socket) {
+			zmq_setsockopt(data_socket, ZMQ_UNSUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
 			zmq_disconnect(data_socket, data_endpoint.c_str());
 			zmq_close(data_socket);
 			data_socket = NULL;
 			if (notify_socket) {
+				zmq_setsockopt(notify_socket, ZMQ_UNSUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
 				zmq_disconnect(notify_socket, notify_endpoint.c_str());
 				zmq_close(notify_socket);
 				notify_socket = NULL;
@@ -268,6 +275,9 @@ int Sensor::receive_notify() {
 	int result = zmq_msg_init(&msg);
 	if (LIKELY(!result)) {
 		result = zmq_msg_recv(&msg, notify_socket, 0);
+		if (LIKELY(result > 0)) {	// result is number of received bytes or -1
+			result = on_receive_notify(msg);
+		}
 		zmq_msg_close(&msg);
 	}
 
@@ -281,7 +291,7 @@ int Sensor::receive_data() {
 	int result = zmq_msg_init(&msg);
 	if (LIKELY(!result)) {
 		result = zmq_msg_recv(&msg, data_socket, 0);
-		if (result >= sizeof(publish_header_t)) {	// result is number of received bytes or -1
+		if (result >= (int)sizeof(publish_header_t)) {	// result is number of received bytes or -1
 			// receive publishing header
 			publish_header_t header;
 			memcpy(&header, zmq_msg_data(&msg), sizeof(publish_header_t));
@@ -290,8 +300,8 @@ int Sensor::receive_data() {
 			result = zmq_msg_init(&msg);
 			if (LIKELY(!result)) {
 				result = zmq_msg_recv(&msg, data_socket, 0);
-				if (LIKELY(result)) {
-					on_receive_data(header, msg);
+				if (LIKELY(result > 0)) {	// result is number of received bytes or -1
+					result = on_receive_data(header, msg);
 				}
 			}
 		} else if (result > 0){
@@ -301,19 +311,6 @@ int Sensor::receive_data() {
 	}
 
 	RETURN(result, int);
-}
-
-int Sensor::on_receive_data(const publish_header_t &header, zmq_msg_t &msg) {
-	ENTER();
-
-	int result = -1;
-	const size_t size = zmq_msg_size(&msg);
-	if (LIKELY(size > 0)) {
-		// FIXME 未実装
-		result = 0;
-	}
-
-	RETURN(result ,int);
 }
 
 /*private*/
@@ -328,17 +325,15 @@ void Sensor::zmq_run() {
 
 	for ( ; isRunning() ; ) {
 		int ix = zmq_poll(items, 2, 100);
-		switch (ix) {
-		case 0:
-			// notify_socket ready to receive
-			receive_notify();
-			break;
-		case 1:
-			// data socket ready to receive
-			receive_data();
-			break;
-		default:
-			break;
+		if (ix > 0) {
+			if ((items[0].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
+				// notify_socket ready to receive
+				receive_notify();
+			}
+			if ((items[1].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
+				// data socket ready to receive
+				receive_data();
+			}
 		}
 	}
 	is_running = false;

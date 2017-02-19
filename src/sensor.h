@@ -46,6 +46,7 @@ private:
 protected:
 	int receive_notify();
 	int receive_data();
+	virtual int on_receive_notify(zmq_msg_t &msg) = 0;
 	virtual int on_receive_data(const publish_header_t &header, zmq_msg_t &msg) = 0;
 public:
 	Sensor(const sensor_type_t &sensor_type, const char *uuid, const char *name);

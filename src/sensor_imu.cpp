@@ -23,6 +23,7 @@
 namespace serenegiant {
 namespace sensor {
 
+/*public*/
 IMUSensor::IMUSensor(const char *uuid, const char *name)
 :	Sensor(SENSOR_IMU, uuid, name) {
 
@@ -31,6 +32,8 @@ IMUSensor::IMUSensor(const char *uuid, const char *name)
 	EXIT();
 }
 
+/*virtual*/
+/*public*/
 IMUSensor::~IMUSensor() {
 
 	ENTER();
@@ -38,6 +41,23 @@ IMUSensor::~IMUSensor() {
 	EXIT();
 }
 
+/*virtual*/
+/*protected*/
+int IMUSensor::on_receive_notify(zmq_msg_t &msg) {
+	ENTER();
+
+	int result = -1;
+	const size_t size = zmq_msg_size(&msg);
+	if (LIKELY(size > 0)) {
+		// FIXME 未実装
+		result = 0;
+	}
+
+	RETURN(result ,int);
+}
+
+/*virtual*/
+/*protected*/
 int IMUSensor::on_receive_data(const publish_header_t &header, zmq_msg_t &msg) {
 	ENTER();
 
