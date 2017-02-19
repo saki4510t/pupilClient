@@ -43,6 +43,7 @@ private:
 	pthread_t zmq_thread;
 	static void *zmq_thread_func(void *vptr_args);
 	void zmq_run();
+	int zmq_start();
 	void zmq_stop();
 protected:
 	int receive_notify();

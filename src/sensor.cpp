@@ -63,32 +63,32 @@ static const int SND_HWM = 3;
 static int setup_socket(void *zmq_socket) {
 	ENTER();
 
-	int result = zmq_setsockopt(zmq_socket, ZMQ_LINGER, (const void *)&LINGER, sizeof(LINGER));
+	int result = zmq_setsockopt(zmq_socket, ZMQ_LINGER, &LINGER, sizeof(int));
 	if (UNLIKELY(result)) {
 		LOGE("failed to set connect timeout:errno=%d", errno);
 		goto ret;
 	}
-	result = zmq_setsockopt(zmq_socket, ZMQ_CONNECT_TIMEOUT, (const void *)&CONNECT_TIMEOUT, sizeof(CONNECT_TIMEOUT));
+	result = zmq_setsockopt(zmq_socket, ZMQ_CONNECT_TIMEOUT, &CONNECT_TIMEOUT, sizeof(int));
 	if (UNLIKELY(result)) {
 		LOGE("failed to set connect timeout:errno=%d", errno);
 		goto ret;
 	}
-	result = zmq_setsockopt(zmq_socket, ZMQ_RCVTIMEO, (const void *)&RCV_TIMEOUT, sizeof(RCV_TIMEOUT));
+	result = zmq_setsockopt(zmq_socket, ZMQ_RCVTIMEO, &RCV_TIMEOUT, sizeof(int));
 	if (UNLIKELY(result)) {
 		LOGE("failed to set rcv timeout:errno=%d", errno);
 		goto ret;
 	}
-	result = zmq_setsockopt(zmq_socket, ZMQ_SNDTIMEO, (const void *)&SND_TIMEOUT, sizeof(SND_TIMEOUT));
+	result = zmq_setsockopt(zmq_socket, ZMQ_SNDTIMEO, &SND_TIMEOUT, sizeof(int));
 	if (UNLIKELY(result)) {
 		LOGE("failed to set send timeout:errno=%d", errno);
 		goto ret;
 	}
-	result = zmq_setsockopt(zmq_socket, ZMQ_RCVHWM, (const void *)&RCV_HWM, sizeof(RCV_HWM));
+	result = zmq_setsockopt(zmq_socket, ZMQ_RCVHWM, &RCV_HWM, sizeof(int));
 	if (UNLIKELY(result)) {
 		LOGE("failed to set rcv high water mark:errno=%d", errno);
 		goto ret;
 	}
-	result = zmq_setsockopt(zmq_socket, ZMQ_SNDHWM, (const void *)&SND_HWM, sizeof(SND_HWM));
+	result = zmq_setsockopt(zmq_socket, ZMQ_SNDHWM, &SND_HWM, sizeof(int));
 	if (UNLIKELY(result)) {
 		LOGE("failed to set send high water mark:errno=%d", errno);
 		goto ret;
@@ -111,72 +111,11 @@ int Sensor::start(void *_zmq_context,
 			command_endpoint = command;
 			notify_endpoint = notify;
 			data_endpoint = data;
-			const char *subscription = sensor_uuid.c_str();
-			const int subscription_size = strlen(subscription);
 
-			command_socket = zmq_socket(_zmq_context, ZMQ_PUSH);
-			if (LIKELY(command_socket)) {
-				result = setup_socket(command_socket);
-				if (UNLIKELY(result)) {
-					goto err;
-				}
-				result = zmq_connect(command_socket, command);
-				if (UNLIKELY(result)) {
-					LOGE("failed to connect to command:errno=%d", errno);
-					goto err;
-				}
-			} else {
-				LOGE("failed to create command socket:errno=%d", errno);
+			result = zmq_start();
+			if (UNLIKELY(result)) {
 				goto err;
 			}
-
-			notify_socket = zmq_socket(_zmq_context, ZMQ_SUB);
-			if (LIKELY(notify_socket)) {
-				result = setup_socket(notify_socket);
-				if (UNLIKELY(result)) {
-					goto err;
-				}
-				result = zmq_connect(notify_socket, notify);
-				if (UNLIKELY(result)) {
-
-					LOGE("failed to connect to notify:errno=%d", errno);
-					goto err;
-				}
-				result = zmq_setsockopt(notify_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
-				if (UNLIKELY(result)) {
-					LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
-//					goto err;
-				}
-			} else {
-				LOGE("failed to create notify socket:errno=%d", errno);
-				goto err;
-			}
-
-			data_socket = zmq_socket(_zmq_context, ZMQ_SUB);
-			if (LIKELY(data_socket)) {
-				result = setup_socket(data_socket);
-				if (UNLIKELY(result)) {
-					zmq_close(data_socket);
-					data_socket = NULL;
-					goto err;
-				}
-				result = zmq_connect(data_socket, data);
-				if (UNLIKELY(result)) {
-					zmq_close(data_socket);
-					data_socket = NULL;
-					LOGE("failed to connect to data:errno=%d", errno);
-					goto err;
-				}
-				result = zmq_setsockopt(data_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
-				if (UNLIKELY(result)) {
-					LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
-//					goto err;
-				}
-			} else {
-				LOGE("failed to create data socket:errno=%d", errno);
-				goto err;
-			}
-
 
 		} else {
 			LOGE("zmq context / command / notify / data should not be null");
@@ -194,6 +133,7 @@ int Sensor::start(void *_zmq_context,
 	}
 
 	RETURN(result, int);
+
 err:
 	zmq_stop();
 	RETURN(result, int);
@@ -215,50 +155,139 @@ int Sensor::stop() {
 	RETURN(0, int);
 }
 
-/*protected*/
+/*private*/
+int Sensor::zmq_start() {
+	ENTER();
+
+	int result = -1;
+
+	const char *subscription = sensor_uuid.c_str();
+	const int subscription_size = strlen(subscription);
+
+	command_socket = zmq_socket(zmq_context, ZMQ_PUSH);
+	if (LIKELY(command_socket)) {
+		result = setup_socket(command_socket);
+		if (UNLIKELY(result)) {
+			goto err;
+		}
+		LOGV("command: connect to %s", command_endpoint.c_str());
+		result = zmq_connect(command_socket, command_endpoint.c_str());
+		if (UNLIKELY(result)) {
+			LOGE("failed to connect to command:errno=%d", errno);
+			goto err;
+		}
+	} else {
+		LOGE("failed to create command socket:errno=%d", errno);
+		goto err;
+	}
+
+	notify_socket = zmq_socket(zmq_context, ZMQ_SUB);
+	if (LIKELY(notify_socket)) {
+		result = setup_socket(notify_socket);
+		if (UNLIKELY(result)) {
+
+			goto err;
+		}
+		LOGV("notify: connect to %s", notify_endpoint.c_str());
+		result = zmq_connect(notify_socket, notify_endpoint.c_str());
+		if (UNLIKELY(result)) {
+
+			LOGE("failed to connect to notify:errno=%d", errno);
+			goto err;
+		}
+		LOGV("notify: subscribe %s", subscription);
+		result = zmq_setsockopt(notify_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
+		if (UNLIKELY(result)) {
+			LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
+//					goto err;
+		}
+	} else {
+		LOGE("failed to create notify socket:errno=%d", errno);
+		goto err;
+	}
+
+	data_socket = zmq_socket(zmq_context, ZMQ_SUB);
+	if (LIKELY(data_socket)) {
+		result = setup_socket(data_socket);
+
+		if (UNLIKELY(result)) {
+			zmq_close(data_socket);
+			data_socket = NULL;
+			goto err;
+		}
+		LOGV("data: connect to %s", data_endpoint.c_str());
+		result = zmq_connect(data_socket, data_endpoint.c_str());
+		if (UNLIKELY(result)) {
+			zmq_close(data_socket);
+			data_socket = NULL;
+			LOGE("failed to connect to data:errno=%d", errno);
+			goto err;
+		}
+		LOGV("data: subscribe %s", subscription);
+		result = zmq_setsockopt(data_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
+		if (UNLIKELY(result)) {
+			LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
+//					goto err;
+		}
+	} else {
+		LOGE("failed to create data socket:errno=%d", errno);
+		goto err;
+	}
+
+	RETURN(result, int);
+
+err:
+	zmq_stop();
+	RETURN(result, int);
+}
+
+/*private*/
 void Sensor::zmq_stop() {
 	ENTER();
 
-	if (zmq_context) {
-		if (data_socket) {
-			zmq_setsockopt(data_socket, ZMQ_UNSUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
-			zmq_disconnect(data_socket, data_endpoint.c_str());
-			zmq_close(data_socket);
-			data_socket = NULL;
-			if (notify_socket) {
-				zmq_setsockopt(notify_socket, ZMQ_UNSUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
-				zmq_disconnect(notify_socket, notify_endpoint.c_str());
-				zmq_close(notify_socket);
-				notify_socket = NULL;
-			}
+	is_running = false;
+	if (data_socket) {
+		LOGV("release data socket");
+		zmq_setsockopt(data_socket, ZMQ_UNSUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
+		zmq_disconnect(data_socket, data_endpoint.c_str());
+		zmq_close(data_socket);
+		data_socket = NULL;
+		if (notify_socket) {
+			LOGV("release notify socket");
+			zmq_setsockopt(notify_socket, ZMQ_UNSUBSCRIBE, sensor_uuid.c_str(), sensor_uuid.size());
+			zmq_disconnect(notify_socket, notify_endpoint.c_str());
+			zmq_close(notify_socket);
+			notify_socket = NULL;
+		}
+		if (command_socket) {
+			LOGV("release command socket");
+			zmq_disconnect(command_socket, command_endpoint.c_str());
+			zmq_close(command_socket);
+			command_socket = NULL;
+		}
+	} else {
+		if (notify_socket) {
+			LOGV("release notify socket");
+			zmq_close(notify_socket);
+			notify_socket = NULL;
 			if (command_socket) {
-				zmq_disconnect(command_socket, command_endpoint.c_str());
+				LOGV("release command socket");
+				zmq_disconnect(command_socket, notify_endpoint.c_str());
 				zmq_close(command_socket);
 				command_socket = NULL;
 			}
 		} else {
-			if (notify_socket) {
-				zmq_close(notify_socket);
-				notify_socket = NULL;
-				if (command_socket) {
-					zmq_disconnect(command_socket, notify_endpoint.c_str());
-					zmq_close(command_socket);
-					command_socket = NULL;
-				}
-			} else {
-				if (command_socket) {
-					zmq_close(command_socket);
-					command_socket = NULL;
-				}
+			if (command_socket) {
+				LOGV("release command socket");
+				zmq_close(command_socket);
+				command_socket = NULL;
 			}
 		}
-	} else {
-		command_socket = notify_socket = data_socket = NULL;
 	}
-	zmq_context = NULL;
 
 	EXIT();
 }
+
 /*static*/
 /*private*/
 void *Sensor::zmq_thread_func(void *vptr_args) {
@@ -322,11 +351,14 @@ int Sensor::receive_data() {
 void Sensor::zmq_run() {
 	ENTER();
 
+//	zmq_start();
 	zmq_pollitem_t items[2];
 	items[0].socket = notify_socket;
 	items[0].events = ZMQ_POLLIN;
+	items[0].fd = 0;
 	items[1].socket = data_socket;
 	items[1].events = ZMQ_POLLIN;
+	items[1].fd = 0;
 
 	int cnt = 0;
 	bool need_refresh_controls = true;
@@ -334,6 +366,7 @@ void Sensor::zmq_run() {
 	for ( ; isRunning() ; ) {
 		int ix = zmq_poll(items, 2, 100);
 		if (ix > 0) {
+			LOGV("zmq_poll:result=%d", ix);
 			if ((items[0].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
 				// notify_socket ready to receive
 				receive_notify();
@@ -343,12 +376,14 @@ void Sensor::zmq_run() {
 				receive_data();
 			}
 		}
+
 		if (((++cnt % 100) == 0) && need_refresh_controls) {
 			need_refresh_controls = requestRefreshControls();
 		}
 	}
 	is_running = false;
 
+	zmq_stop();
 	EXIT();
 }
 
@@ -392,11 +427,12 @@ int Sensor::send(const std::string &msg_str, const int &flag) {
 	const char *msg_chars = msg_str.c_str();
 	const size_t size = strlen(msg_chars);
 	LOGV("message=%s", msg_chars);
-	int result = send((uint8_t *)msg_chars, size, flag);
+	int result = send((const uint8_t *)msg_chars, size, flag);
 
 	RETURN(result, int);
 }
 
+/*protected*/
 int Sensor::send(const uint8_t *_msg_bytes, const size_t &size, const int &flag) {
 	ENTER();
 

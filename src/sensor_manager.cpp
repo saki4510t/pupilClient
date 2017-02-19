@@ -273,7 +273,7 @@ int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 	}
 
 	if (LIKELY(sensor_uuid && sensor_name && sensor_type && notify && command && data)) {
-		LOGD("uuid=%s\nname=%s\ntype=%s\nnnotify=%s\ncommand=%s\ndata=%s",
+		LOGD("uuid=%s\nname=%s\ntype=%s\nnotify=%s\ncommand=%s\ndata=%s",
 			sensor_uuid, sensor_name, sensor_type, notify, command, data);
 		Sensor *sensor = get_sensor(node_uuid, sensor_uuid);
 		if (!sensor) {
