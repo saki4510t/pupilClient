@@ -39,9 +39,9 @@ protected:
 		const char *node_uuid, const char *node_name);
 	int handle_join(zyre_t *zyre, zyre_event_t *event,
 		const char *node_uuid, const char *node_name);
-	int handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
+	int handle_attach(zyre_t *zyre, zyre_event_t *event,
 		const char *node_uuid, const char *node_name, Document &doc);
-	int handle_whisper_detach(zyre_t *zyre, zyre_event_t *event,
+	int handle_detach(zyre_t *zyre, zyre_event_t *event,
 		const char *node_uuid, const char *node_name, Document &doc);
 	int handle_whisper(zyre_t *zyre, zyre_event_t *event,
 		const char *node_uuid, const char *node_name);

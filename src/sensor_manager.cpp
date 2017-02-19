@@ -232,7 +232,7 @@ int SensorManager::handle_join(zyre_t *zyre, zyre_event_t *event,
 }
 
 /*protected*/
-int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
+int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name, Document &doc) {
 
 	ENTER();
@@ -310,7 +310,7 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 }
 
 /*protected*/
-int SensorManager::handle_whisper_detach(zyre_t *zyre, zyre_event_t *event,
+int SensorManager::handle_detach(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name, Document &doc) {
 
 	ENTER();
@@ -347,10 +347,10 @@ int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 				if (subject) {
 					switch (get_subject_type(subject)) {
 					case SUBJECT_ATTACH:
-						handle_whisper_attach(zyre, event, node_uuid, node_name, doc);
+						handle_attach(zyre, event, node_uuid, node_name, doc);
 						break;
 					case SUBJECT_DETACH:
-						handle_whisper_detach(zyre, event, node_uuid, node_name, doc);
+						handle_detach(zyre, event, node_uuid, node_name, doc);
 						break;
 					default:
 						LOGE("unknown subject type:%s", subject);
@@ -391,10 +391,10 @@ int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 				if (subject) {
 					switch (get_subject_type(subject)) {
 					case SUBJECT_ATTACH:
-						handle_whisper_attach(zyre, event, node_uuid, node_name, doc);
+						handle_attach(zyre, event, node_uuid, node_name, doc);
 						break;
 					case SUBJECT_DETACH:
-						handle_whisper_detach(zyre, event, node_uuid, node_name, doc);
+						handle_detach(zyre, event, node_uuid, node_name, doc);
 						break;
 					default:
 						LOGE("unknown subject type:%s", subject);
