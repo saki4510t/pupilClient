@@ -14,8 +14,9 @@
 #include <map>
 #include <string>
 
-#include <zyre.h>
+#include <zmq.h>
 #include <czmq.h>
+#include <zyre.h>
 
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/document.h>
@@ -26,5 +27,6 @@
 #include "condition.h"
 
 using namespace android;
+using namespace rapidjson;
 
 #endif /* APP_CONST_H_ */

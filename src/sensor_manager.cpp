@@ -5,7 +5,7 @@
  *      Author: saki
  */
 
-#if 1	// set 0 if you need debug log, otherwise set 1
+#if 0	// set 0 if you need debug log, otherwise set 1
 	#ifndef LOG_NDEBUG
 		#define LOG_NDEBUG
 	#endif
@@ -17,38 +17,34 @@
 #endif
 
 #include "utilbase.h"
-#include "rapidjson/rapidjson.h"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/error/en.h"
+#include "app_const.h"
 
+#include "sensor_common.h"
 #include "sensor_manager.h"
+
 #include "sensor.h"
+#include "sensor_audio.h"
+#include "sensor_imu.h"
+#include "sensor_uvc.h"
 
 namespace serenegiant {
 namespace sensor {
 
-using namespace rapidjson;
-
 const char *target_group = "pupil-mobile";
-
-//================================================================================
-static void json_error(Document &doc) {
-	if (doc.HasParseError()) {
-		size_t offset = doc.GetErrorOffset();
-		ParseErrorCode code = doc.GetParseError();
-		const char *err = GetParseError_En(code);
-		LOGE("json error:%lu:%d(%s)", offset, code, err);
-	}
-}
 
 //================================================================================
 /*public*/
 SensorManager::SensorManager()
 :	is_running(false),
-	zyre_thread() {
+	zyre_thread(),
+	zmq_context(NULL) {
 
 	ENTER();
+
+	zmq_context = zmq_ctx_new();
+	if (UNLIKELY(!zmq_context)) {
+		LOGE("zmq_ctx_new failed, errno=%d", errno);
+	}
 
 	EXIT();
 }
@@ -60,6 +56,19 @@ SensorManager::~SensorManager() {
 	stop();
 	remove_sensor_all();
 
+	if (zmq_context) {
+		int result = zmq_ctx_shutdown(zmq_context);
+		if (LIKELY(!result)) {
+			result = zmq_ctx_term(zmq_context);
+			if (result) {
+				LOGE("zmq_ctx_term failed, result=%d,errno=%d", result, errno);
+			}
+		} else {
+			LOGE("zmq_ctx_shutdown failed, result=%d,errno=%d", result, errno);
+		}
+
+		zmq_context = NULL;
+	}
 	EXIT();
 }
 
@@ -207,7 +216,8 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 
 	ENTER();
 
-	const char *sensor_name = NULL, *sensor_uuid, *notify = NULL, *command = NULL, *data = NULL;
+	const char *sensor_name = NULL, *sensor_uuid = NULL, *sensor_type = NULL;
+	const char *notify = NULL, *command = NULL, *data = NULL;
 	Value::ConstMemberIterator itr = doc.FindMember("sensor_uuid");
 	if (itr != doc.MemberEnd()) {
 		const Value &v = itr->value;
@@ -218,6 +228,12 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 		const Value &v = itr->value;
 		sensor_name = v.GetString();
 	}
+	itr = doc.FindMember("sensor_type");
+	if (itr != doc.MemberEnd()) {
+		const Value &v = itr->value;
+		sensor_type = v.GetString();
+	}
+
 	itr = doc.FindMember("notify_endpoint");
 	if (itr != doc.MemberEnd()) {
 		const Value &v = itr->value;
@@ -234,11 +250,27 @@ int SensorManager::handle_whisper_attach(zyre_t *zyre, zyre_event_t *event,
 		data = v.GetString();
 	}
 
-	if (LIKELY(sensor_name && sensor_uuid && notify && command && data)) {
-		LOGD("uuid=%s\nname=%s\nnnotify=%s\ncommand=%s\ndata=%s",
-			sensor_uuid, sensor_name, notify, command, data);
-		Sensor *sensor = new Sensor(sensor_uuid, sensor_name, notify, command, data);
-		add_sensor(node_uuid, sensor);
+	if (LIKELY(sensor_uuid && sensor_name && sensor_type && notify && command && data)) {
+		LOGD("uuid=%s\nname=%s\ntype=%s\nnnotify=%s\ncommand=%s\ndata=%s",
+			sensor_uuid, sensor_name, sensor_type, notify, command, data);
+		Sensor *sensor = NULL;
+		switch (get_sensor_type(sensor_type)) {
+		case SENSOR_MIC:
+			sensor = new AudioSensor(sensor_uuid, sensor_name);
+			break;
+		case SENSOR_IMU:
+			sensor = new IMUSensor(sensor_uuid, sensor_name);
+			break;
+		case SENSOR_UVC:
+			sensor = new UVCSensor(sensor_uuid, sensor_name);
+			break;
+		default:
+			LOGE("unknown sensor type:%s", sensor_type);
+		}
+		if (sensor) {
+			add_sensor(node_uuid, sensor);
+			sensor->start(zmq_context, notify, command, data);
+		}
 	}
 
 	RETURN(0, int);
@@ -275,20 +307,23 @@ int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 		char *str = zmsg_popstr(msg);
 		if (str) {
 			LOGV("msg=%s", str);
-			Document doc;
+			rapidjson::Document doc;
 			doc.Parse(str);
 			if (LIKELY(!doc.HasParseError())) {
-				Value::ConstMemberIterator itr = doc.FindMember("subject");
-				if (itr != doc.MemberEnd()) {
-					const Value &v = itr->value;
-					const char *subject = v.GetString();
-					if (subject) {
-						if (streq(subject, "attach")) {
-							handle_whisper_attach(zyre, event, node_uuid, node_name, doc);
-						} else if (streq(subject, "detach")) {
-							handle_whisper_detach(zyre, event, node_uuid, node_name, doc);
-						}
+				const char *subject = json_get_string(doc, "subject");
+				if (subject) {
+					switch (get_subject_type(subject)) {
+					case SUBJECT_ATTACH:
+						handle_whisper_attach(zyre, event, node_uuid, node_name, doc);
+						break;
+					case SUBJECT_DETACH:
+						handle_whisper_detach(zyre, event, node_uuid, node_name, doc);
+						break;
+					default:
+						LOGE("unknown subject type:%s", subject);
 					}
+				} else {
+					LOGE("missing subject field");
 				}
 			} else {
 				json_error(doc);
@@ -350,7 +385,7 @@ int SensorManager::handle_exit(zyre_t *zyre, zyre_event_t *event,
 }
 
 /*static*/
-/*protected*/
+/*private*/
 void *SensorManager::zyre_thread_func(void *vptr_args) {
 	ENTER();
 
@@ -363,7 +398,10 @@ void *SensorManager::zyre_thread_func(void *vptr_args) {
 	pthread_exit(NULL);
 }
 
+/*private*/
 void SensorManager::zyre_run() {
+	ENTER();
+
 	zyre_t *node = zyre_new(NULL);
 	zyre_set_header(node, "X-Client", "ffmpegDecoder");
 	zyre_join(node, target_group);
@@ -413,6 +451,9 @@ void SensorManager::zyre_run() {
 		LOGE("could not start zyre node");
 	}
 	zyre_destroy(&node);
+
+	is_running = false;
+	EXIT();
 }
 
 }	// namespace sensor

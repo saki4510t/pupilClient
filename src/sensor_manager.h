@@ -9,6 +9,7 @@
 #define SENSOR_MANAGER_H_
 
 #include "app_const.h"
+#include "sensor_common.h"
 
 namespace serenegiant {
 namespace sensor {
@@ -16,13 +17,16 @@ namespace sensor {
 using namespace rapidjson;
 
 class Sensor;
+
 class SensorManager {
 private:
-	std::multimap<std::string, Sensor*> sensors;
 	volatile bool is_running;
 	mutable Mutex sensor_lock;
+	std::multimap<std::string, Sensor*> sensors;
 	pthread_t zyre_thread;
 	static void *zyre_thread_func(void *vptr_args);
+	void *zmq_context;
+	void zyre_run();
 protected:
 	void remove_sensor_all();
 	void remove_sensors(const std::string &node_uuid);
@@ -46,7 +50,6 @@ protected:
 		const char *node_uuid, const char *node_name);
 	int handle_exit(zyre_t *zyre, zyre_event_t *event,
 		const char *node_uuid, const char *node_name);
-	void zyre_run();
 public:
 	SensorManager();
 	virtual ~SensorManager();
