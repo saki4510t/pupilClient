@@ -63,13 +63,9 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 	ENTER();
 
 	LOGI("Sensor#Constructor");
-//	zmq_context = zmq_ctx_new();
 	if (UNLIKELY(!zmq_context)) {
 		LOGE("zmq_ctx_new failed, errno=%d", errno);
 	}
-//	// 各sensor毎にzmq contextを持つかIOスレッドの数を増やさないと
-//	// カメラ３台+IMU+MICの同時publishingをした時にコンソールが応答しなくなる
-//	zmq_ctx_set(zmq_context, ZMQ_IO_THREADS, 5);
 
 	EXIT();
 }
@@ -150,8 +146,7 @@ int Sensor::start(/*void *_zmq_context,*/
 
 	int result = 0;
 	if (!isRunning()) {
-		if (LIKELY(/*_zmq_context &&*/ command && notify && data)) {
-//			zmq_context = _zmq_context;
+		if (LIKELY(zmq_context && command && notify && data)) {
 			command_endpoint = command;
 			notify_endpoint = notify;
 			data_endpoint = data;
