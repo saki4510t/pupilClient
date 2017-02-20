@@ -25,6 +25,7 @@
 
 #include "mutex.h"
 #include "condition.h"
+#include "endian_unaligned.h"
 
 using namespace android;
 using namespace rapidjson;

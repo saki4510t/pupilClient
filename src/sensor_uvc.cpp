@@ -57,10 +57,13 @@ int UVCSensor::handle_frame_data(const std::string &identity, const publish_head
 	ENTER();
 
 	int result = -1;
-	if (LIKELY(size > 0)) {
-		LOGD("actual bytes=%lu", size);
+	const uint32_t data_bytes = letoh32_unaligned(&header.data_bytes_le);
+	if (LIKELY((size > 0) && (size == data_bytes))) {
+		LOGI("actual bytes=%lu", size);
 		// FIXME 未実装
 		result = 0;
+	} else {
+		LOGW("data_bytes=%u, received=%lu", data_bytes, size);
 	}
 
 	RETURN(result ,int);
