@@ -15,8 +15,8 @@ namespace sensor {
 
 class IMUSensor: public virtual Sensor {
 protected:
-	virtual int on_receive_notify(zmq_msg_t &msg);
-	virtual int on_receive_data(const publish_header_t &header, zmq_msg_t &msg);
+	virtual int on_receive_notify(const std::string &identity, zmq_msg_t &msg);
+	virtual int on_receive_data(const std::string &identity, const publish_header_t &header, zmq_msg_t &msg);
 public:
 	IMUSensor(const char *uuid, const char *name);
 	virtual ~IMUSensor();

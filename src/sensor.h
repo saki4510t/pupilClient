@@ -48,8 +48,8 @@ private:
 protected:
 	int receive_notify();
 	int receive_data();
-	virtual int on_receive_notify(zmq_msg_t &msg) = 0;
-	virtual int on_receive_data(const publish_header_t &header, zmq_msg_t &msg) = 0;
+	virtual int on_receive_notify(const std::string &identity, zmq_msg_t &msg) = 0;
+	virtual int on_receive_data(const std::string &identity, const publish_header_t &header, zmq_msg_t &msg) = 0;
 	int create_payload(Writer<StringBuffer> &writer);
 	int create_payload(Writer<StringBuffer> &writer, const request_type_t &request);
 	int send(const std::string &msg_str, const int &flag = 0);

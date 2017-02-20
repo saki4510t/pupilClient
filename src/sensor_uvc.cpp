@@ -43,7 +43,7 @@ UVCSensor::~UVCSensor() {
 
 /*virtual*/
 /*protected*/
-int UVCSensor::on_receive_notify(zmq_msg_t &msg) {
+int UVCSensor::on_receive_notify(const std::string &identity, zmq_msg_t &msg) {
 	ENTER();
 
 	int result = -1;
@@ -58,7 +58,7 @@ int UVCSensor::on_receive_notify(zmq_msg_t &msg) {
 
 /*virtual*/
 /*protected*/
-int UVCSensor::on_receive_data(const publish_header_t &header, zmq_msg_t &msg) {
+int UVCSensor::on_receive_data(const std::string &identity, const publish_header_t &header, zmq_msg_t &msg) {
 	ENTER();
 
 	int result = -1;

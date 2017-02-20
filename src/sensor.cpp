@@ -309,12 +309,26 @@ int Sensor::receive_notify() {
 	int result = zmq_msg_init(&msg);
 	if (LIKELY(!result)) {
 		result = zmq_msg_recv(&msg, notify_socket, 0);
+		// 最初のデータはsensor identity
 		if (LIKELY(result > 0)) {	// result is number of received bytes or -1
-			result = on_receive_notify(msg);
+			char identity[result + 1];
+			memcpy(identity, zmq_msg_data(&msg), result);
+			identity[result] = '\0';
+			zmq_msg_close(&msg);
+			result = zmq_msg_init(&msg);
+			if (UNLIKELY(result)) {
+				LOGE("zmq_msg_init failed, errno=%d", errno);
+				goto ret;
+			}
+			result = zmq_msg_recv(&msg, notify_socket, 0);
+			if (result > 0) {
+				result = on_receive_notify(identity, msg);
+			}
 		}
 		zmq_msg_close(&msg);
 	}
 
+ret:
 	RETURN(result, int);
 }
 
@@ -325,25 +339,46 @@ int Sensor::receive_data() {
 	int result = zmq_msg_init(&msg);
 	if (LIKELY(!result)) {
 		result = zmq_msg_recv(&msg, data_socket, 0);
-		if (result >= (int)sizeof(publish_header_t)) {	// result is number of received bytes or -1
-			// receive publishing header
-			publish_header_t header;
-			memcpy(&header, zmq_msg_data(&msg), sizeof(publish_header_t));
+		// 最初のデータはsensor identity
+		if (LIKELY(result > 0)) {
+			char identity[result + 1];
+			memcpy(identity, zmq_msg_data(&msg), result);
+			identity[result] = '\0';
 			zmq_msg_close(&msg);
-			//
 			result = zmq_msg_init(&msg);
-			if (LIKELY(!result)) {
-				result = zmq_msg_recv(&msg, data_socket, 0);
-				if (LIKELY(result > 0)) {	// result is number of received bytes or -1
-					result = on_receive_data(header, msg);
-				}
+			if (UNLIKELY(result)) {
+				LOGE("zmq_msg_init failed, errno=%d", errno);
+				goto ret;
 			}
-		} else if (result > 0){
-			LOGW("receive unexpected data:bytes=%d", result);
+			result = zmq_msg_init(&msg);
+			if (UNLIKELY(result)) {
+				LOGE("zmq_msg_init failed, errno=%d", errno);
+				goto ret;
+			}
+			// 2つ目のデータはpublish_header_t
+			result = zmq_msg_recv(&msg, data_socket, 0);
+			if (result >= (int)sizeof(publish_header_t)) {	// result is number of received bytes or -1
+				// receive publishing header
+				publish_header_t header;
+				memcpy(&header, zmq_msg_data(&msg), sizeof(publish_header_t));
+				zmq_msg_close(&msg);
+				//
+				result = zmq_msg_init(&msg);
+				if (LIKELY(!result)) {
+					// 最後に実際のフレームデータが来る
+					result = zmq_msg_recv(&msg, data_socket, 0);
+					if (LIKELY(result > 0)) {	// result is number of received bytes or -1
+						result = on_receive_data(identity, header, msg);
+					}
+				}
+			} else if (result > 0){
+				LOGW("receive unexpected data:bytes=%d", result);
+			}
 		}
 		zmq_msg_close(&msg);
 	}
 
+ret:
 	RETURN(result, int);
 }
 
