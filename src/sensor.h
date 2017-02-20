@@ -14,16 +14,6 @@
 namespace serenegiant {
 namespace sensor {
 
-typedef struct publish_header {
-    uint32_t format_le; // MJPEG, H264, (YUYV, VP8)
-    uint32_t width_le;
-    uint32_t height_le;
-    uint32_t sequence_le;
-    int64_t presentation_time_us_le;
-    uint32_t data_bytes_le;
-    uint32_t reserved_le;
-} __attribute__ ((packed)) publish_header_t;
-
 class Sensor {
 private:
 	const sensor_type_t sensor_type;
@@ -51,12 +41,14 @@ protected:
 	virtual int handle_notify_update(const std::string &identity, const std::string &payload) = 0;
 	virtual int handle_notify_remove(const std::string &identity, const std::string &payload);
 	virtual int handle_notify_error(const std::string &identity, const std::string &payload);
-	virtual int on_receive_data(const std::string &identity, const publish_header_t &header, zmq_msg_t &msg) = 0;
+	virtual int handle_frame_data(const std::string &identity, const publish_header_t &header, const size_t &size, const uint8_t *data) = 0;
 	int create_payload(Writer<StringBuffer> &writer);
 	int create_payload(Writer<StringBuffer> &writer, const request_type_t &request);
 	int send(const std::string &msg_str, const int &flag = 0);
 	int send(const uint8_t *msg_bytes, const size_t &size, const int &flag = 0);
-	int requestRefreshControls();
+	int request_refresh_controls();
+	int set_control_value(const std::string &control_id, const bool &value);
+	int set_control_value(const std::string &control_id, const int &value);
 public:
 	Sensor(const sensor_type_t &sensor_type, const char *uuid, const char *name);
 	virtual ~Sensor();

@@ -53,11 +53,10 @@ int AudioSensor::handle_notify_update(const std::string &identity, const std::st
 
 /*virtual*/
 /*protected*/
-int AudioSensor::on_receive_data(const std::string &identity, const publish_header_t &header, zmq_msg_t &msg) {
+int AudioSensor::handle_frame_data(const std::string &identity, const publish_header_t &header, const size_t &size, const uint8_t *data) {
 	ENTER();
 
 	int result = -1;
-	const size_t size = zmq_msg_size(&msg);
 	if (LIKELY(size > 0)) {
 		// FIXME 未実装
 		result = 0;

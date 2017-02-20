@@ -25,6 +25,29 @@
 namespace serenegiant {
 namespace sensor {
 
+static std::string recv_str(void *socket) {
+//	ENTER();
+
+	std::string result;
+
+	zmq_msg_t msg;
+	int r = zmq_msg_init(&msg);
+	if (LIKELY(!r)) {
+		r = zmq_msg_recv(&msg, socket, 0);
+		if (r > 0) {
+			char data[r + 1];
+			memcpy(data, zmq_msg_data(&msg), r);
+			data[r] = '\0';
+			result = data;
+		}
+		zmq_msg_close(&msg);
+	}
+
+	return result; //	RET(result);
+}
+
+//================================================================================
+
 Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *name)
 :	sensor_type(_sensor_type),
 	sensor_uuid(uuid),
@@ -302,25 +325,52 @@ void *Sensor::zmq_thread_func(void *vptr_args) {
 	pthread_exit(NULL);
 }
 
-static std::string recv_str(void *socket) {
+/*private*/
+void Sensor::zmq_run() {
 	ENTER();
 
-	std::string result;
+//	zmq_start();
+	zmq_pollitem_t items[2];
+	items[0].socket = notify_socket;
+	items[0].events = ZMQ_POLLIN;
+	items[0].fd = 0;
+	items[1].socket = data_socket;
+	items[1].events = ZMQ_POLLIN;
+	items[1].fd = 0;
 
-	zmq_msg_t msg;
-	int r = zmq_msg_init(&msg);
-	if (LIKELY(!r)) {
-		r = zmq_msg_recv(&msg, socket, 0);
-		if (r > 0) {
-			char data[r + 1];
-			memcpy(data, zmq_msg_data(&msg), r);
-			data[r] = '\0';
-			result = data;
+	int cnt = 0;
+	bool need_refresh_controls = true;
+	bool first_time = true;
+	need_refresh_controls = request_refresh_controls();
+	for ( ; isRunning() ; ) {
+		int ix = zmq_poll(items, 2, 100);
+		if (LIKELY(isRunning())) {
+			if (ix > 0) {
+	//			LOGV("zmq_poll:result=%d", ix);
+				if ((items[0].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
+					// notify_socket ready to receive
+					receive_notify();
+				}
+				if ((items[1].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
+					// data socket ready to receive
+					receive_data();
+				}
+			}
+
+			if (((++cnt % 100) == 0) && need_refresh_controls) {
+				need_refresh_controls = request_refresh_controls();
+			}
+			if (first_time && (cnt % 100) == 0) {
+				first_time = false;
+				// テスト用に問答無用でpublishingをonにする
+				set_control_value("streaming", true);
+			}
 		}
-		zmq_msg_close(&msg);
 	}
+	is_running = false;
 
-	RET(result);
+	zmq_stop();
+	EXIT();
 }
 
 int Sensor::handle_notify_remove(const std::string &identity, const std::string &payload) {
@@ -345,7 +395,10 @@ int Sensor::receive_notify() {
 	int result = -1;
 
 	std::string identity = recv_str(notify_socket);
-	if (LIKELY(!identity.empty() && (identity == sensor_uuid))) {
+	if (LIKELY(!identity.empty())) {
+		if (identity != sensor_uuid) {
+			LOGW("unexpected identity: expect=%s,actual=%s", sensor_uuid.c_str(), identity.c_str());
+		}
 		std::string payload = recv_str(notify_socket);
 		if (LIKELY(!payload.empty())) {
 			rapidjson::Document doc;
@@ -372,21 +425,28 @@ int Sensor::receive_notify() {
 }
 
 int Sensor::receive_data() {
-	ENTER();
+//	ENTER();
 
 	int result = -1;
 
 	std::string identity = recv_str(data_socket);
-	if (LIKELY(!identity.empty() && (identity == sensor_uuid))) {
+	if (LIKELY(!identity.empty())) {
+		if (identity != sensor_uuid) {
+			LOGW("unexpected identity: expect=%s,actual=%s", sensor_uuid.c_str(), identity.c_str());
+		}
 		zmq_msg_t msg;
-		int result = zmq_msg_init(&msg);
+		result = zmq_msg_init(&msg);
 		if (LIKELY(!result)) {
 			// 2つ目のデータはpublish_header_t
+			// result is number of received bytes or -1
 			result = zmq_msg_recv(&msg, data_socket, 0);
-			if (result >= (int)sizeof(publish_header_t)) {	// result is number of received bytes or -1
+			// reserved_leはセンサーによっては送ってこないかもしれないのでどちらでもいいように
+			if ((result >= (int)(sizeof(publish_header_t) - sizeof(uint32_t)))
+				&& (result <= (int)(sizeof(publish_header_t)))) {
 				// receive publishing header
 				publish_header_t header;
-				memcpy(&header, zmq_msg_data(&msg), sizeof(publish_header_t));
+				header.reserved_le = 0;
+				memcpy(&header, zmq_msg_data(&msg), result);
 				zmq_msg_close(&msg);
 				//
 				result = zmq_msg_init(&msg);
@@ -394,13 +454,15 @@ int Sensor::receive_data() {
 					// 最後に実際のフレームデータが来る
 					result = zmq_msg_recv(&msg, data_socket, 0);
 					if (LIKELY(result > 0)) {	// result is number of received bytes or -1
-						result = on_receive_data(identity, header, msg);
+						result = handle_frame_data(identity, header, result, (const uint8_t *)zmq_msg_data(&msg));
+					} else {
+						LOGE("empty frame data bytes, result=%d", result);
 					}
 				} else {
 					LOGE("zmq_msg_init failed, errno=%d", errno);
 					goto ret;
 				}
-			} else if (result > 0){
+			} else if (result > 0) {
 				LOGW("receive unexpected data:bytes=%d", result);
 			}
 			zmq_msg_close(&msg);
@@ -412,92 +474,26 @@ int Sensor::receive_data() {
 	}
 
 ret:
-	RETURN(result, int);
+	return result; // RETURN(result, int);
 }
 
-/*private*/
-void Sensor::zmq_run() {
-	ENTER();
-
-//	zmq_start();
-	zmq_pollitem_t items[2];
-	items[0].socket = notify_socket;
-	items[0].events = ZMQ_POLLIN;
-	items[0].fd = 0;
-	items[1].socket = data_socket;
-	items[1].events = ZMQ_POLLIN;
-	items[1].fd = 0;
-
-	int cnt = 0;
-	bool need_refresh_controls = true;
-	need_refresh_controls = requestRefreshControls();
-	for ( ; isRunning() ; ) {
-		int ix = zmq_poll(items, 2, 100);
-		if (ix > 0) {
-//			LOGV("zmq_poll:result=%d", ix);
-			if ((items[0].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
-				// notify_socket ready to receive
-				receive_notify();
-			}
-			if ((items[1].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
-				// data socket ready to receive
-				receive_data();
-			}
-		}
-
-		if (((++cnt % 100) == 0) && need_refresh_controls) {
-			need_refresh_controls = requestRefreshControls();
-		}
-	}
-	is_running = false;
-
-	zmq_stop();
-	EXIT();
-}
-
-/*protected*/
-int Sensor::create_payload(Writer<StringBuffer> &writer) {
-	ENTER();
-
-	// do nothing
-
-	RETURN(0, int);
-}
-
-/*protected*/
-int Sensor::create_payload(Writer<StringBuffer> &writer, const request_type_t &request) {
-	ENTER();
-
-	int result = -1;
-	std::string request_str = get_request_type_str(request);
-	if (!request_str.empty()) {
-		writer.String("action");
-		writer.String(request_str.c_str());
-		result = 0;
-	}
-
-	RETURN(result, int);
-}
-
+//================================================================================
 static void zmq_free_function(void *_data, void *hint) {
-	ENTER();
+//	ENTER();
 
 	uint8_t *data = (uint8_t *)_data;
 	SAFE_DELETE_ARRAY(data);
 
-	EXIT();
+//	EXIT();
 }
 
 /*protected*/
 int Sensor::send(const std::string &msg_str, const int &flag) {
-	ENTER();
 
 	const char *msg_chars = msg_str.c_str();
 	const size_t size = strlen(msg_chars);
 	LOGV("message=%s", msg_chars);
-	int result = send((const uint8_t *)msg_chars, size, flag);
-
-	RETURN(result, int);
+	return send((const uint8_t *)msg_chars, size, flag);
 }
 
 /*protected*/
@@ -538,8 +534,33 @@ int Sensor::send(const uint8_t *_msg_bytes, const size_t &size, const int &flag)
 	RETURN(result, int);
 }
 
+//================================================================================
+/*protected*/
+int Sensor::create_payload(Writer<StringBuffer> &writer) {
+	ENTER();
 
-int Sensor::requestRefreshControls() {
+	// do nothing
+
+	RETURN(0, int);
+}
+
+/*protected*/
+int Sensor::create_payload(Writer<StringBuffer> &writer, const request_type_t &request) {
+	ENTER();
+
+	int result = -1;
+	std::string request_str = get_request_type_str(request);
+	if (!request_str.empty()) {
+		writer.String("action");
+		writer.String(request_str.c_str());
+		result = 0;
+	}
+
+	RETURN(result, int);
+}
+
+//--------------------------------------------------------------------------------
+int Sensor::request_refresh_controls() {
 	ENTER();
 
 	int result = -1;
@@ -564,6 +585,81 @@ int Sensor::requestRefreshControls() {
 
 	RETURN(result, int);
 }
+
+/*
+set_control_value = {
+    "action"          : "set_control_value",
+    "control_id"      : <String>,
+    "value"           : <value>
+}
+*/
+
+/*protected*/
+int Sensor::set_control_value(const std::string &control_id, const bool &value) {
+	ENTER();
+
+	int result = -1;
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+
+	// create payload
+	writer.StartObject();
+	{
+		result = create_payload(writer, REQUEST_SET_CONTROL_VALUE);
+		if (LIKELY(!result)) {
+			writer.String("control_id");
+			writer.String(control_id.c_str());
+			writer.String("value");
+			writer.Bool(value);
+		}
+	}
+	writer.EndObject();
+
+	if (LIKELY(!result)) {
+		// send sensor identity as first part with more flag
+		result = send((const uint8_t *)sensor_identity, strlen(sensor_identity), ZMQ_SNDMORE);
+		if (LIKELY(!result)) {
+			// send actual payload
+			result = send(buffer.GetString());
+		}
+	}
+
+	RETURN(result, int);
+}
+
+/*protected*/
+int Sensor::set_control_value(const std::string &control_id, const int &value) {
+	ENTER();
+
+	int result = -1;
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+
+	// create payload
+	writer.StartObject();
+	{
+		result = create_payload(writer, REQUEST_SET_CONTROL_VALUE);
+		if (LIKELY(!result)) {
+			writer.String("control_id");
+			writer.String(control_id.c_str());
+			writer.String("value");
+			writer.Int(value);
+		}
+	}
+	writer.EndObject();
+
+	if (LIKELY(!result)) {
+		// send sensor identity as first part with more flag
+		result = send((const uint8_t *)sensor_identity, strlen(sensor_identity), ZMQ_SNDMORE);
+		if (LIKELY(!result)) {
+			// send actual payload
+			result = send(buffer.GetString());
+		}
+	}
+
+	RETURN(result, int);
+}
+
 
 }	// namespace sensor
 }	// namespace serenegiant

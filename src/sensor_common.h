@@ -32,6 +32,34 @@ typedef enum request_type {
 	REQUEST_SET_CONTROL_VALUE = 1,
 } request_type_t;
 
+typedef struct publish_header {
+    uint32_t format_le; // MJPEG, H264, (YUYV, VP8)
+    uint32_t width_le;
+    uint32_t height_le;
+    uint32_t sequence_le;
+    int64_t presentation_time_us_le;
+    uint32_t data_bytes_le;
+    uint32_t reserved_le;
+} __attribute__ ((packed)) publish_header_t;
+
+typedef enum value_type {
+	VALUE_TYPE_UNKNOWN = 0,
+	VALUE_TYPE_BOOL,
+	VALUE_TYPE_INT,
+	VALUE_TYPE_STRING,
+	VALUE_TYPE_MAP,
+} value_type_t;
+
+typedef struct control_value {
+	value_type_t value_type;
+	std::string current;	// json string
+	union {
+		bool bool_value;
+		int int_value;
+		std::string string_value;
+	};
+} control_value_t;
+
 extern void json_error(rapidjson::Document &doc);
 extern sensor_type_t get_sensor_type(const std::string &sensor_type_str);
 extern subject_type_t get_subject_type(const std::string &subject_type_str);
