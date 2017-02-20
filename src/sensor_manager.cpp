@@ -293,7 +293,7 @@ int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 			}
 			if (sensor) {
 				add_sensor(node_uuid, sensor);
-				sensor->start(zmq_context, notify, command, data);
+				sensor->start(zmq_context, command, notify, data);
 				result = 0;
 			} else {
 				LOGE("unknown sensor type:%s", sensor_type);
