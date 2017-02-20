@@ -58,7 +58,7 @@ int UVCSensor::handle_frame_data(const std::string &identity, const publish_head
 
 	int result = -1;
 	if (LIKELY(size > 0)) {
-		LOGV("actual bytes=%d", size);
+		LOGD("actual bytes=%lu", size);
 		// FIXME 未実装
 		result = 0;
 	}

@@ -12,7 +12,7 @@
 	#undef USE_LOGALL
 #else
 //	#define USE_LOGALL
-	#undef LOG_NDEBUG
+//	#undef LOG_NDEBUG
 	#undef NDEBUG
 #endif
 
@@ -37,14 +37,17 @@ const char *target_group = "pupil-mobile";
 SensorManager::SensorManager()
 :	is_running(false),
 	zyre_thread(),
-	zmq_context(NULL) {
+	zmq_context(zmq_ctx_new()) {
 
 	ENTER();
 
-	zmq_context = zmq_ctx_new();
+//	zmq_context = zmq_ctx_new();
 	if (UNLIKELY(!zmq_context)) {
 		LOGE("zmq_ctx_new failed, errno=%d", errno);
 	}
+	// 各sensor毎にzmq contextを持つかIOスレッドの数を増やさないと
+	// カメラ３台+IMU+MICの同時publishingをした時にコンソールが応答しなくなる
+	zmq_ctx_set(zmq_context, ZMQ_IO_THREADS, 5);
 
 	EXIT();
 }
@@ -69,6 +72,7 @@ SensorManager::~SensorManager() {
 
 		zmq_context = NULL;
 	}
+
 	EXIT();
 }
 
@@ -272,8 +276,8 @@ int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 	}
 
 	if (LIKELY(sensor_uuid && sensor_name && sensor_type && notify && command && data)) {
-		LOGD("uuid=%s\nname=%s\ntype=%s\nnotify=%s\ncommand=%s\ndata=%s",
-			sensor_uuid, sensor_name, sensor_type, notify, command, data);
+//		LOGD("uuid=%s\nname=%s\ntype=%s\nnotify=%s\ncommand=%s\ndata=%s",
+//			sensor_uuid, sensor_name, sensor_type, notify, command, data);
 		Sensor *sensor = get_sensor(node_uuid, sensor_uuid);
 		if (!sensor) {
 			switch (get_sensor_type(sensor_type)) {
@@ -338,7 +342,7 @@ int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 		zmsg_print(msg);
 		char *str = zmsg_popstr(msg);
 		if (str) {
-			LOGV("msg=%s", str);
+//			LOGV("msg=%s", str);
 			rapidjson::Document doc;
 			doc.Parse(str);
 			if (LIKELY(!doc.HasParseError())) {

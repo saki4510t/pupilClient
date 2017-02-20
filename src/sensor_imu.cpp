@@ -58,6 +58,7 @@ int IMUSensor::handle_frame_data(const std::string &identity, const publish_head
 
 	int result = -1;
 	if (LIKELY(size > 0)) {
+		LOGD("actual bytes=%lu", size);
 		// FIXME 未実装
 		result = 0;
 	}

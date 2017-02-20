@@ -222,7 +222,7 @@ int Sensor::zmq_start() {
 		result = zmq_setsockopt(notify_socket, ZMQ_SUBSCRIBE, subscription, subscription_size);
 		if (UNLIKELY(result)) {
 			LOGE("failed to set subscription:errno=%d, subscription=%s", errno, subscription);
-//					goto err;
+//			goto err;
 		}
 	} else {
 		LOGE("failed to create notify socket:errno=%d", errno);
