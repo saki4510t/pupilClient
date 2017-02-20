@@ -54,7 +54,7 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 	sensor_name(name),
 	sensor_identity(sensor_uuid.c_str()),
 	is_running(false),
-	zmq_context(NULL),
+	zmq_context(zmq_ctx_new()),
 	command_socket(NULL),
 	notify_socket(NULL),
 	data_socket(NULL),
@@ -63,6 +63,13 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 	ENTER();
 
 	LOGI("Sensor#Constructor");
+//	zmq_context = zmq_ctx_new();
+	if (UNLIKELY(!zmq_context)) {
+		LOGE("zmq_ctx_new failed, errno=%d", errno);
+	}
+//	// 各sensor毎にzmq contextを持つかIOスレッドの数を増やさないと
+//	// カメラ３台+IMU+MICの同時publishingをした時にコンソールが応答しなくなる
+//	zmq_ctx_set(zmq_context, ZMQ_IO_THREADS, 5);
 
 	EXIT();
 }
@@ -72,6 +79,20 @@ Sensor::~Sensor() {
 
 	LOGI("Sensor#Destructor");
 	stop();
+
+	if (zmq_context) {
+		int result = zmq_ctx_shutdown(zmq_context);
+		if (LIKELY(!result)) {
+			result = zmq_ctx_term(zmq_context);
+			if (result) {
+				LOGE("zmq_ctx_term failed, result=%d,errno=%d", result, errno);
+			}
+		} else {
+			LOGE("zmq_ctx_shutdown failed, result=%d,errno=%d", result, errno);
+		}
+
+		zmq_context = NULL;
+	}
 
 	EXIT();
 }
@@ -122,15 +143,15 @@ ret:
 }
 
 /*public*/
-int Sensor::start(void *_zmq_context,
+int Sensor::start(/*void *_zmq_context,*/
 	const char *command, const char *notify, const char *data) {
 
 	ENTER();
 
 	int result = 0;
 	if (!isRunning()) {
-		if (LIKELY(_zmq_context && command && notify && data)) {
-			zmq_context = _zmq_context;
+		if (LIKELY(/*_zmq_context &&*/ command && notify && data)) {
+//			zmq_context = _zmq_context;
 			command_endpoint = command;
 			notify_endpoint = notify;
 			data_endpoint = data;

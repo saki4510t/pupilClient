@@ -36,18 +36,9 @@ const char *target_group = "pupil-mobile";
 /*public*/
 SensorManager::SensorManager()
 :	is_running(false),
-	zyre_thread(),
-	zmq_context(zmq_ctx_new()) {
+	zyre_thread() {
 
 	ENTER();
-
-//	zmq_context = zmq_ctx_new();
-	if (UNLIKELY(!zmq_context)) {
-		LOGE("zmq_ctx_new failed, errno=%d", errno);
-	}
-	// 各sensor毎にzmq contextを持つかIOスレッドの数を増やさないと
-	// カメラ３台+IMU+MICの同時publishingをした時にコンソールが応答しなくなる
-	zmq_ctx_set(zmq_context, ZMQ_IO_THREADS, 5);
 
 	EXIT();
 }
@@ -59,19 +50,19 @@ SensorManager::~SensorManager() {
 	stop();
 	remove_sensor_all();
 
-	if (zmq_context) {
-		int result = zmq_ctx_shutdown(zmq_context);
-		if (LIKELY(!result)) {
-			result = zmq_ctx_term(zmq_context);
-			if (result) {
-				LOGE("zmq_ctx_term failed, result=%d,errno=%d", result, errno);
-			}
-		} else {
-			LOGE("zmq_ctx_shutdown failed, result=%d,errno=%d", result, errno);
-		}
-
-		zmq_context = NULL;
-	}
+//	if (zmq_context) {
+//		int result = zmq_ctx_shutdown(zmq_context);
+//		if (LIKELY(!result)) {
+//			result = zmq_ctx_term(zmq_context);
+//			if (result) {
+//				LOGE("zmq_ctx_term failed, result=%d,errno=%d", result, errno);
+//			}
+//		} else {
+//			LOGE("zmq_ctx_shutdown failed, result=%d,errno=%d", result, errno);
+//		}
+//
+//		zmq_context = NULL;
+//	}
 
 	EXIT();
 }
@@ -296,7 +287,7 @@ int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 			}
 			if (sensor) {
 				add_sensor(node_uuid, sensor);
-				sensor->start(zmq_context, command, notify, data);
+				sensor->start(/*zmq_context,*/ command, notify, data);
 				result = 0;
 			} else {
 				LOGE("unknown sensor type:%s", sensor_type);

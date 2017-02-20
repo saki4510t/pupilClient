@@ -25,7 +25,6 @@ private:
 	std::multimap<std::string, Sensor*> sensors;
 	pthread_t zyre_thread;
 	static void *zyre_thread_func(void *vptr_args);
-	void *zmq_context;
 	void zyre_run();
 protected:
 	void remove_sensor_all();

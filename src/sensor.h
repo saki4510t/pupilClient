@@ -57,7 +57,7 @@ public:
 	inline const std::string uuid() const { return sensor_uuid; };
 	inline const std::string name() const { return sensor_name; };
 
-	int start(void *zmq_context, const char *command, const char *notify, const char *data);
+	int start(/*void *zmq_context,*/const char *command, const char *notify, const char *data);
 	int stop();
 	inline const bool isRunning() const { return is_running; };
 };
