@@ -43,7 +43,7 @@ AudioSensor::~AudioSensor() {
 
 /*virtual*/
 /*protected*/
-int AudioSensor::on_receive_notify(const std::string &identity, const std::string &payload) {
+int AudioSensor::handle_notify_update(const std::string &identity, const std::string &payload) {
 	ENTER();
 
 	int result = -1;

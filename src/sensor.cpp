@@ -323,6 +323,22 @@ static std::string recv_str(void *socket) {
 	RET(result);
 }
 
+int Sensor::handle_notify_remove(const std::string &identity, const std::string &payload) {
+	ENTER();
+
+	LOGE("remove:%s", payload.c_str());
+
+	RETURN(0, int);
+}
+
+int Sensor::handle_notify_error(const std::string &identity, const std::string &payload) {
+	ENTER();
+
+	LOGE("error:%s", payload.c_str());
+
+	RETURN(0, int);
+}
+
 int Sensor::receive_notify() {
 	ENTER();
 
@@ -332,8 +348,23 @@ int Sensor::receive_notify() {
 	if (LIKELY(!identity.empty() && (identity == sensor_uuid))) {
 		std::string payload = recv_str(notify_socket);
 		if (LIKELY(!payload.empty())) {
-			LOGV("identity=%s,payload=%s", identity.c_str(), payload.c_str());
-			result = on_receive_notify(identity, payload);
+			rapidjson::Document doc;
+			doc.Parse(payload.c_str());
+			const char *subject = json_get_string(doc, "subject");
+			switch (get_subject_type(subject)) {
+			case SUBJECT_UPDATE:
+				result = handle_notify_update(identity, payload);
+				break;
+			case SUBJECT_REMOVE:
+				result = handle_notify_remove(identity, payload);
+				break;
+			case SUBJECT_ERROR:
+				result = handle_notify_error(identity, payload);
+				break;
+			default:
+				LOGE("unexpected subject type, payload=%s", payload.c_str());
+				break;
+			}
 		}
 	}
 

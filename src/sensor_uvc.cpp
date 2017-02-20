@@ -43,7 +43,7 @@ UVCSensor::~UVCSensor() {
 
 /*virtual*/
 /*protected*/
-int UVCSensor::on_receive_notify(const std::string &identity, const std::string &payload) {
+int UVCSensor::handle_notify_update(const std::string &identity, const std::string &payload) {
 	ENTER();
 
 	int result = -1;

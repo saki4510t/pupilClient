@@ -15,7 +15,7 @@ namespace sensor {
 
 class AudioSensor: public virtual Sensor {
 protected:
-	virtual int on_receive_notify(const std::string &identity, const std::string &payload);
+	virtual int handle_notify_update(const std::string &identity, const std::string &payload);
 	virtual int on_receive_data(const std::string &identity, const publish_header_t &header, zmq_msg_t &msg);
 public:
 	AudioSensor(const char *uuid, const char *name);
