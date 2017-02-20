@@ -302,59 +302,54 @@ void *Sensor::zmq_thread_func(void *vptr_args) {
 	pthread_exit(NULL);
 }
 
-int Sensor::receive_notify() {
+static std::string recv_str(void *socket) {
 	ENTER();
 
+	std::string result;
+
 	zmq_msg_t msg;
-	int result = zmq_msg_init(&msg);
-	if (LIKELY(!result)) {
-		result = zmq_msg_recv(&msg, notify_socket, 0);
-		// 最初のデータはsensor identity
-		if (LIKELY(result > 0)) {	// result is number of received bytes or -1
-			char identity[result + 1];
-			memcpy(identity, zmq_msg_data(&msg), result);
-			identity[result] = '\0';
-			zmq_msg_close(&msg);
-			result = zmq_msg_init(&msg);
-			if (UNLIKELY(result)) {
-				LOGE("zmq_msg_init failed, errno=%d", errno);
-				goto ret;
-			}
-			result = zmq_msg_recv(&msg, notify_socket, 0);
-			if (result > 0) {
-				result = on_receive_notify(identity, msg);
-			}
+	int r = zmq_msg_init(&msg);
+	if (LIKELY(!r)) {
+		r = zmq_msg_recv(&msg, socket, 0);
+		if (r > 0) {
+			char data[r + 1];
+			memcpy(data, zmq_msg_data(&msg), r);
+			data[r] = '\0';
+			result = data;
 		}
 		zmq_msg_close(&msg);
 	}
 
-ret:
+	RET(result);
+}
+
+int Sensor::receive_notify() {
+	ENTER();
+
+	int result = -1;
+
+	std::string identity = recv_str(notify_socket);
+	if (LIKELY(!identity.empty() && (identity == sensor_uuid))) {
+		std::string payload = recv_str(notify_socket);
+		if (LIKELY(!payload.empty())) {
+			LOGV("identity=%s,payload=%s", identity.c_str(), payload.c_str());
+			result = on_receive_notify(identity, payload);
+		}
+	}
+
 	RETURN(result, int);
 }
 
 int Sensor::receive_data() {
 	ENTER();
 
-	zmq_msg_t msg;
-	int result = zmq_msg_init(&msg);
-	if (LIKELY(!result)) {
-		result = zmq_msg_recv(&msg, data_socket, 0);
-		// 最初のデータはsensor identity
-		if (LIKELY(result > 0)) {
-			char identity[result + 1];
-			memcpy(identity, zmq_msg_data(&msg), result);
-			identity[result] = '\0';
-			zmq_msg_close(&msg);
-			result = zmq_msg_init(&msg);
-			if (UNLIKELY(result)) {
-				LOGE("zmq_msg_init failed, errno=%d", errno);
-				goto ret;
-			}
-			result = zmq_msg_init(&msg);
-			if (UNLIKELY(result)) {
-				LOGE("zmq_msg_init failed, errno=%d", errno);
-				goto ret;
-			}
+	int result = -1;
+
+	std::string identity = recv_str(data_socket);
+	if (LIKELY(!identity.empty() && (identity == sensor_uuid))) {
+		zmq_msg_t msg;
+		int result = zmq_msg_init(&msg);
+		if (LIKELY(!result)) {
 			// 2つ目のデータはpublish_header_t
 			result = zmq_msg_recv(&msg, data_socket, 0);
 			if (result >= (int)sizeof(publish_header_t)) {	// result is number of received bytes or -1
@@ -370,12 +365,19 @@ int Sensor::receive_data() {
 					if (LIKELY(result > 0)) {	// result is number of received bytes or -1
 						result = on_receive_data(identity, header, msg);
 					}
+				} else {
+					LOGE("zmq_msg_init failed, errno=%d", errno);
+					goto ret;
 				}
 			} else if (result > 0){
 				LOGW("receive unexpected data:bytes=%d", result);
 			}
+			zmq_msg_close(&msg);
+		} else {
+			LOGE("zmq_msg_init failed, errno=%d", errno);
 		}
-		zmq_msg_close(&msg);
+	} else {
+		LOGE("couldn't receive sensor identity");
 	}
 
 ret:
@@ -401,7 +403,7 @@ void Sensor::zmq_run() {
 	for ( ; isRunning() ; ) {
 		int ix = zmq_poll(items, 2, 100);
 		if (ix > 0) {
-			LOGV("zmq_poll:result=%d", ix);
+//			LOGV("zmq_poll:result=%d", ix);
 			if ((items[0].revents & ZMQ_POLLIN) == ZMQ_POLLIN) {
 				// notify_socket ready to receive
 				receive_notify();

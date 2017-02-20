@@ -43,15 +43,10 @@ UVCSensor::~UVCSensor() {
 
 /*virtual*/
 /*protected*/
-int UVCSensor::on_receive_notify(const std::string &identity, zmq_msg_t &msg) {
+int UVCSensor::on_receive_notify(const std::string &identity, const std::string &payload) {
 	ENTER();
 
 	int result = -1;
-	const size_t size = zmq_msg_size(&msg);
-	if (LIKELY(size > 0)) {
-		// FIXME 未実装
-		result = 0;
-	}
 
 	RETURN(result ,int);
 }
