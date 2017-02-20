@@ -225,8 +225,7 @@ int SensorManager::handle_join(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
 	ENTER();
 
-	const char *group = zyre_event_group(event);
-	LOGD("join to %s", group);
+	LOGD("join to %s", zyre_event_group(event));
 
 	RETURN(0, int);
 }
@@ -375,8 +374,7 @@ int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 
 	ENTER();
 
-	const char *group = zyre_event_group(event);
-	LOGD("shout to %s", group);
+	LOGD("shout to %s", zyre_event_group(event));
 
 	zmsg_t *msg = zyre_event_get_msg(event);
 	if (msg) {
@@ -419,8 +417,7 @@ int SensorManager::handle_leave(zyre_t *zyre, zyre_event_t *event,
 
 	ENTER();
 
-	const char *group = zyre_event_group(event);
-	LOGD("leave from %s", group);
+	LOGD("leave from %s", zyre_event_group(event));
 
 	remove_sensors(node_uuid);
 
@@ -460,7 +457,9 @@ void SensorManager::zyre_run() {
 	zyre_set_header(node, "X-Client", "ffmpegDecoder");
 	zyre_join(node, target_group);
 	int status = zyre_start(node);
+#ifndef LOG_NDEBUG
 	zyre_print(node);
+#endif
 	if (status == 0) {
 		zsock_t *socket = zyre_socket(node);
 		zpoller_t *poller = zpoller_new(socket);
@@ -473,10 +472,10 @@ void SensorManager::zyre_run() {
 						const char *event_type = zyre_event_type(event);
 						const char *node_uuid = zyre_event_peer_uuid(event);
 						const char *node_name = zyre_event_peer_name(event);
-						LOGI("-----------------");
-						LOGI("NODE_EVENT_TYPE: %s", event_type);
-						LOGI("NODE_UUID      : %s", node_uuid);
-						LOGI("NODE_NAME      : %s", node_name);
+						LOGD("-----------------");
+						LOGD("NODE_EVENT_TYPE: %s", event_type);
+						LOGD("NODE_UUID      : %s", node_uuid);
+						LOGD("NODE_NAME      : %s", node_name);
 						if (streq(event_type, "ENTER")) {
 							handle_enter(node, event, node_uuid, node_name);
 						} else if (streq(event_type, "JOIN")) {
