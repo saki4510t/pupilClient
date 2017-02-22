@@ -47,7 +47,7 @@ static std::string recv_str(void *socket) {
 }
 
 //================================================================================
-
+/*public*/
 Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *name)
 :	sensor_type(_sensor_type),
 	sensor_uuid(uuid),
@@ -70,6 +70,7 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 	EXIT();
 }
 
+/*public*/
 Sensor::~Sensor() {
 	ENTER();
 
@@ -198,6 +199,7 @@ int Sensor::stop() {
 	RETURN(0, int);
 }
 
+//================================================================================
 /*private*/
 int Sensor::zmq_start() {
 	ENTER();
@@ -349,7 +351,6 @@ void *Sensor::zmq_thread_func(void *vptr_args) {
 void Sensor::zmq_run() {
 	ENTER();
 
-//	zmq_start();
 	zmq_pollitem_t items[2];
 	items[0].socket = notify_socket;
 	items[0].events = ZMQ_POLLIN;
@@ -393,6 +394,8 @@ void Sensor::zmq_run() {
 	EXIT();
 }
 
+/*virtual*/
+/*protected*/
 int Sensor::handle_notify_remove(const std::string &identity, const std::string &payload) {
 	ENTER();
 
@@ -401,6 +404,8 @@ int Sensor::handle_notify_remove(const std::string &identity, const std::string 
 	RETURN(0, int);
 }
 
+/*virtual*/
+/*protected*/
 int Sensor::handle_notify_error(const std::string &identity, const std::string &payload) {
 	ENTER();
 
@@ -409,6 +414,8 @@ int Sensor::handle_notify_error(const std::string &identity, const std::string &
 	RETURN(0, int);
 }
 
+/*virtual*/
+/*protected*/
 int Sensor::receive_notify() {
 	ENTER();
 
@@ -444,6 +451,8 @@ int Sensor::receive_notify() {
 	RETURN(result, int);
 }
 
+/*virtual*/
+/*protected*/
 int Sensor::receive_data() {
 //	ENTER();
 
@@ -507,6 +516,7 @@ static void zmq_free_function(void *_data, void *hint) {
 //	EXIT();
 }
 
+/*virtual*/
 /*protected*/
 int Sensor::send(const std::string &msg_str, const int &flag) {
 
@@ -516,6 +526,7 @@ int Sensor::send(const std::string &msg_str, const int &flag) {
 	return send((const uint8_t *)msg_chars, size, flag);
 }
 
+/*virtual*/
 /*protected*/
 int Sensor::send(const uint8_t *_msg_bytes, const size_t &size, const int &flag) {
 	ENTER();
@@ -555,6 +566,7 @@ int Sensor::send(const uint8_t *_msg_bytes, const size_t &size, const int &flag)
 }
 
 //================================================================================
+/*virtual*/
 /*protected*/
 int Sensor::create_payload(Writer<StringBuffer> &writer) {
 	ENTER();
@@ -564,6 +576,7 @@ int Sensor::create_payload(Writer<StringBuffer> &writer) {
 	RETURN(0, int);
 }
 
+/*virtual*/
 /*protected*/
 int Sensor::create_payload(Writer<StringBuffer> &writer, const request_type_t &request) {
 	ENTER();
@@ -580,6 +593,8 @@ int Sensor::create_payload(Writer<StringBuffer> &writer, const request_type_t &r
 }
 
 //--------------------------------------------------------------------------------
+/*virtual*/
+/*protected*/
 int Sensor::request_refresh_controls() {
 	ENTER();
 
@@ -614,6 +629,7 @@ set_control_value = {
 }
 */
 
+/*virtual*/
 /*protected*/
 int Sensor::set_control_value(const std::string &control_id, const bool &value) {
 	ENTER();
@@ -647,6 +663,7 @@ int Sensor::set_control_value(const std::string &control_id, const bool &value) 
 	RETURN(result, int);
 }
 
+/*virtual*/
 /*protected*/
 int Sensor::set_control_value(const std::string &control_id, const int &value) {
 	ENTER();

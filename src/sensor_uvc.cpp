@@ -130,6 +130,7 @@ int UVCSensor::handle_frame_data(const std::string &identity,
 	RETURN(result ,int);
 }
 
+/*protected*/
 int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &height,
 	const size_t &size, const uint8_t *data, const int64_t &presentation_time_us) {
 
@@ -150,6 +151,7 @@ int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &he
 	RETURN(result, int);
 }
 
+/*protected*/
 int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &height,
 	const size_t &size, const uint8_t *data, const int64_t &presentation_time_us) {
 
@@ -216,6 +218,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 	RETURN(result, int);
 }
 
+/*protected*/
 int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &height,
 	const size_t &size, const uint8_t *data, const int64_t &presentation_time_us) {
 
@@ -271,6 +274,7 @@ static int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **p
  * check whether the frame is key frame
  * @return true is key frame, otherwise return false
  * */
+/*protected*/
 const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 	ENTER();
 

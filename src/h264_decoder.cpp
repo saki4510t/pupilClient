@@ -32,6 +32,7 @@ static std::string av_error(const int errnum) {
 	return std::string(errbuf);
 }
 
+/*public*/
 H264Decoder::H264Decoder(const color_format_t &_color_format)
 :	color_format(AV_PIX_FMT_YUV420P),
 	codec_context(NULL),
@@ -81,6 +82,8 @@ H264Decoder::H264Decoder(const color_format_t &_color_format)
 	EXIT();
 }
 
+/*virtual*/
+/*public*/
 H264Decoder::~H264Decoder() {
 
 	ENTER();
@@ -102,6 +105,7 @@ H264Decoder::~H264Decoder() {
 	EXIT();
 }
 
+/*public*/
 int H264Decoder::set_input_buffer(uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us) {
 
 	ENTER();
@@ -178,6 +182,7 @@ ret:
 	RETURN(result, int);
 }
 
+/*public*/
 int H264Decoder::get_output_buffer(uint8_t *result_buf, const size_t &capacity, int64_t &result_pts) {
 
 	ENTER();
