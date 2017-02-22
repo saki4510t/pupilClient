@@ -126,19 +126,20 @@ int H264Decoder::set_input_buffer(uint8_t *nal_units, const size_t &bytes, const
 				LOGD("got frame");
 				frame_ready = true;
 				// FIXME avcodec_send_packet may generate multiple frames.
-				// But current implementation will lost some of them or get stuck.
+				// But current implementation handle only one...will lost some of them or get stuck.
 				// If you need all frames, get them and put them into queue and handle them on other thread.
 				break;
 			} else if ((result < 0) && (result != AVERROR(EAGAIN)) && (result != AVERROR_EOF)) {
 				LOGE("avcodec_receive_frame returned error %d:%s", result, av_error(result).c_str());
 			} else {
-				// まだ準備出来てない時?
 				switch (result) {
 				case AVERROR(EAGAIN):
+					// decoded frame not ready yet
 					LOGV("avcodec_receive_frame EAGAIN");
 					result = 0;
 					goto ret;
 				case AVERROR_EOF:
+					// buffer flushed
 					LOGV("avcodec_receive_frame AVERROR_EOF");
 					result = 0;
 					goto ret;

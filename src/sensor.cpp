@@ -382,7 +382,7 @@ void Sensor::zmq_run() {
 			}
 			if (first_time && (cnt % 50) == 0) {
 				first_time = false;
-				// テスト用に問答無用でpublishingをonにする
+				// force publishing turn on for testing after approx. 5 secs.
 				set_control_value("streaming", true);
 			}
 		}

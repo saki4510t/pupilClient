@@ -141,7 +141,7 @@ int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &he
 		SAFE_DELETE(h264);
 	}
 
-	// FIXME 未実装, ファイルに出力するだけ
+	// FIXME not implemented, just write to file now.
 	if (UNLIKELY(!ofs.is_open())) {
 		ofs.open("dump.mjpeg", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
@@ -227,7 +227,7 @@ int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &heig
 		SAFE_DELETE(h264);
 	}
 
-	// FIXME 未実装, ファイルに出力するだけ
+	// FIXME not implemented, just write to file now.
 	if (UNLIKELY(!ofs.is_open())) {
 		ofs.open("dump.vp8", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
@@ -237,9 +237,10 @@ int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &heig
 }
 
 /**
- * AnnexBマーカー(N[00] 00 00 01, N>=0)で始まるかどうかをチェックする
- * OKなら0, NGなら-1を返す
- * payloadがNULLでなければannexbマーカーの次の位置を*payloadにセットする
+ * search AnnexB start marker (N[00] 00 00 01, N>=0)
+ * 0: found, otherwise return -1
+ * if payload is not null, set next position after annexB start marker (usually nal header)
+ * even if this found start marker but has no payload, this return -1
  */
 static int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **payload) {
 	ENTER();
@@ -247,13 +248,13 @@ static int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **p
 	if (payload) {
 		*payload = NULL;
 	}
-	for (size_t i = 0; i < len - 4; i++) {	// 本当はlen-3までだけどpayloadが無いのは無効とみなしてlen-4までとする
-		// 最低2つは連続して0x00でないとだめ
+	for (size_t i = 0; i < len - 4; i++) {	// to ignore null payload, use len-4 instead of len-3
+		// at least two 0x00 needs
 		if ((data[0] != 0x00) || (data[1] != 0x00)) {
 			data++;
 			continue;
 		}
-		// 3つ目が0x01ならOK
+		// if third byte is 0x01, return ok
 		if (data[2] == 0x01) {
 			if (payload) {
 				*payload = data + 3;
@@ -267,8 +268,8 @@ static int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **p
 }
 
 /**
- * I-Frameかどうかをチェック
- * @return I-Frameならtrue
+ * check whether the frame is key frame
+ * @return true is key frame, otherwise return false
  * */
 const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 	ENTER();
@@ -279,18 +280,18 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 		const uint8_t *data = _data;
 		const uint8_t *payload = NULL;
 		int sz = size;
-		LOGD("annexbマーカーを探す");
+		LOGD("annexBマーカーを探す");
 		int ret = find_annexb(data, sz, &payload);
 		if (LIKELY(!ret)) {
-			LOGV("annexbマーカーが見つかった");
+			LOGV("annexBマーカーが見つかった");
 			bool sps = false, pps = false;
 			int ix = payload - data;
 			sz -= ix;
 			for (uint32_t i = ix; i < size; i++) {
 				const nal_unit_type_t type = (nal_unit_type_t)(payload[0] & 0x1f);
 				switch (type) {
-				case NAL_UNIT_CODEC_SLICE_IDR: // MediaCodecのh.264エンコーダーからの出力はこれが来る...でもffmpegは認識しない
-					LOGD("IFrameが見つかった");
+				case NAL_UNIT_CODEC_SLICE_IDR:
+					LOGD("I frame");
 //					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
 //					LOGD("SPS/PPS?:%s", bin2hex(&payload[0], 128).c_str());
 					result = true;
@@ -346,7 +347,7 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 					break;
 				}
 				default:
-					// 何かAnnexbマーカーで始まるpayloadの時, SPS+PPSが見つかっていればIFrameとする
+					// 何かAnnexBマーカーで始まるpayloadの時, SPS+PPSが見つかっていればIFrameとする
 					LOGV("type=%x", type);
 					result = sps && pps;
 					goto end;
@@ -355,10 +356,10 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 end:
 			result = sps && pps;
 		} else {
-			LOGD("annexbマーカーが見つからなかった");
+			LOGD("no annexB start marker found");
 		}
 	} else {
-		LOGW("短すぎる");
+		LOGW("too short");
 	}
 ret:
 	RETURN(result, bool);
