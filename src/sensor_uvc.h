@@ -61,6 +61,11 @@ private:
 	bool need_wait_iframe;
 	uint32_t last_sequence;
 	std::ofstream ofs;
+	uint32_t received_frames;
+	uint32_t error_frames;
+	uint32_t skipped_frames;
+	size_t received_bytes;
+	nsecs_t start_time;
 protected:
 	virtual int handle_notify_update(const std::string &identity, const std::string &payload);
 	virtual int handle_frame_data(const std::string &identity,

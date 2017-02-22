@@ -32,7 +32,12 @@ UVCSensor::UVCSensor(const char *uuid, const char *name)
 	h264_width(0), h264_height(0),
 	need_wait_iframe(true),
 	last_sequence(-1),
-	ofs() {
+	ofs(),
+	received_frames(0),
+	error_frames(0),
+	skipped_frames(0),
+	received_bytes(0),
+	start_time(0) {
 
 	ENTER();
 
@@ -56,6 +61,9 @@ UVCSensor::~UVCSensor() {
 int UVCSensor::start(const char *command, const char *notify, const char *data) {
 	int result = Sensor::start(command, notify, data);
 	last_sequence = -1;
+	received_frames = error_frames = skipped_frames = 0;
+	received_bytes = 0;
+	start_time = systemTime();
 	return result;
 }
 
@@ -87,6 +95,7 @@ int UVCSensor::handle_frame_data(const std::string &identity,
 	const bool skipped = (last_sequence + 1) != sequence;
 	if (UNLIKELY(skipped)) {
 		LOGW("frame skipped seq=%d,expect=%d", sequence, last_sequence + 1);
+		skipped_frames += sequence - (last_sequence + 1);
 	}
 	if (LIKELY((size > 0) && (size == data_bytes))) {
 		switch (format) {
@@ -109,6 +118,14 @@ int UVCSensor::handle_frame_data(const std::string &identity,
 		LOGW("data_bytes=%u, received=%lu", data_bytes, size);
 	}
 	last_sequence = sequence;
+	received_frames++;
+	error_frames += result ? 1 : 0;
+	received_bytes += size;
+	if (UNLIKELY(!(received_frames % 500))) {
+		fprintf(stderr, "frames=%6u,err=%6u,skipped=%6u,bytes=%12lu,rate=%8.1fkB/s\n",
+			received_frames, error_frames, skipped_frames, received_bytes,
+			received_bytes / ((float)(systemTime() - start_time) / 1000000000.0f) / 1024 );
+	}
 
 	RETURN(result ,int);
 }
@@ -120,8 +137,11 @@ int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &he
 
 	int result = 0;
 
-	SAFE_DELETE(h264);
-	// FIXME 未実装
+	if (UNLIKELY(h264)) {
+		SAFE_DELETE(h264);
+	}
+
+	// FIXME 未実装, ファイルに出力するだけ
 	if (UNLIKELY(!ofs.is_open())) {
 		ofs.open("dump.mjpeg", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
@@ -203,8 +223,11 @@ int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &heig
 
 	int result = 0;
 
-	SAFE_DELETE(h264);
-	// FIXME 未実装
+	if (UNLIKELY(h264)) {
+		SAFE_DELETE(h264);
+	}
+
+	// FIXME 未実装, ファイルに出力するだけ
 	if (UNLIKELY(!ofs.is_open())) {
 		ofs.open("dump.vp8", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
@@ -271,7 +294,7 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 //					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
 //					LOGD("SPS/PPS?:%s", bin2hex(&payload[0], 128).c_str());
 					result = true;
-					goto end;
+					goto ret;
 //					break;
 				case NAL_UNIT_SEQUENCE_PARAM_SET:
 				{
@@ -309,7 +332,7 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 				{
 					LOGD("IFrameじゃないけど1フレームを生成できるNALユニットの集まりの区切り");
 					result = true;
-					goto end;
+					goto ret;
 				}
 				case NAL_UNIT_UNSPECIFIED:
 				{
@@ -337,6 +360,7 @@ end:
 	} else {
 		LOGW("短すぎる");
 	}
+ret:
 	RETURN(result, bool);
 }
 

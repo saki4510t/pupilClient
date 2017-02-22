@@ -25,8 +25,6 @@
 namespace serenegiant {
 namespace media {
 
-#define USE_NEW_AVCODEC_API 0
-
 static std::string av_error(const int errnum) {
 	char errbuf[AV_ERROR_MAX_STRING_SIZE + 1];
 	av_strerror(errnum, errbuf, AV_ERROR_MAX_STRING_SIZE);
@@ -125,11 +123,12 @@ int H264Decoder::set_input_buffer(uint8_t *nal_units, const size_t &bytes, const
 		for ( ; !result ; ) {
 			result = avcodec_receive_frame(codec_context, src);
 			if (!result) {
-				LOGI("got frame");
+				LOGD("got frame");
 				frame_ready = true;
-				// FIXME avcodec_send_packetは複数フレームを生成する可能性があるので
-				// 今のテスト実装だとフレームがドロップする
-				// 必要ならデコードしたフレームデータをコピーしてキューに入れること
+				// FIXME avcodec_send_packet may generate multiple frames.
+				// But current implementation will lost some of them or get stuck.
+				// If you need all frames, get them and put them into queue and handle them on other thread.
+				break;
 			} else if ((result < 0) && (result != AVERROR(EAGAIN)) && (result != AVERROR_EOF)) {
 				LOGE("avcodec_receive_frame returned error %d:%s", result, av_error(result).c_str());
 			} else {
@@ -167,9 +166,11 @@ ret:
 #else
 	int frame_finished = 0;
 	result = avcodec_decode_video2(codec_context, src, &frame_finished, &packet);
-	if ((result > 0) && frame_finished) {
-		LOGD("got frame");
-		frame_ready = true;
+	if (result >= 0) {
+		if (frame_finished) {
+			LOGD("got frame");
+			frame_ready = true;
+		}
 		result = 0;
 	}
 #endif
@@ -186,24 +187,39 @@ int H264Decoder::get_output_buffer(uint8_t *result_buf, const size_t &capacity, 
 	size_t result = get_output_bytes();
 
 	if (LIKELY(capacity >= result)) {
+		const int width = this->width();
+		const int height = this->height();
 		if (color_format == codec_context->pix_fmt) {
-//			memcpy(result_buf, src->data[0], result);	// 単純コピーじゃうまく動かない(420spに合わせてコピーしないとだめみたい)
+//			memcpy(result_buf, src->data[0], result);	// simple copy does not work well
+#if USE_NEW_AVCODEC_API
+			av_image_copy_to_buffer(result_buf,
+				(int)capacity, (const uint8_t * const *)src->data, src->linesize, color_format, width, height, 1);
+#else
+			avpicture_layout((const AVPicture *)src, color_format, width, height, result_buf, (int)capacity);
+#endif
 		} else {
-			const int width = this->width();
-			const int height = this->height();
 			if (UNLIKELY(!sws_context)) {
 				sws_context = sws_getContext(width, height, codec_context->pix_fmt,
 					width, height, color_format, SWS_FAST_BILINEAR, NULL, NULL, NULL);
 			}
+#if USE_NEW_AVCODEC_API
+			av_image_fill_arrays(dst->data, dst->linesize,
+				result_buf, color_format, width, height, 1);
+#else
 			avpicture_fill((AVPicture *)dst, result_buf, color_format, width, height);
-			sws_scale(sws_context, (const uint8_t **)src->data, src->linesize, 0, height,
+#endif
+			sws_scale(sws_context, src->data, src->linesize, 0, height,
 				dst->data, dst->linesize);
 		}
 		frame_ready = false;
-		result_pts = src->pts;
-		LOGI("%dx%d,pts=%ld", src->width, src->height, result_pts);
+#if USE_NEW_AVCODEC_API
+		result_pts = src->pts; // this is always AV_NOPTS_VALUE
+#else
+		result_pts = src->pkt_pts;
+#endif
+		LOGD("%dx%d,pts=%ld", src->width, src->height, result_pts);
 		if (UNLIKELY(result_pts == AV_NOPTS_VALUE)) {
-			LOGW("No PTS");
+			LOGD("No PTS");
 		}
 	} else {
 		LOGE("capacity is smaller than required");

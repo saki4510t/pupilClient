@@ -57,6 +57,7 @@ SensorManager::~SensorManager() {
 int SensorManager::stop() {
 	ENTER();
 
+	MARK("stop SensorManager");
 	const bool b = isRunning();
 	is_running = false;
 	if (b) {
@@ -72,6 +73,7 @@ int SensorManager::stop() {
 int SensorManager::start() {
 	ENTER();
 
+	MARK("start SensorManager");
 	int result = 0;
 	if (!isRunning()) {
 		is_running = true;
@@ -453,10 +455,10 @@ void SensorManager::zyre_run() {
 						const char *event_type = zyre_event_type(event);
 						const char *node_uuid = zyre_event_peer_uuid(event);
 						const char *node_name = zyre_event_peer_name(event);
-						LOGD("-----------------");
-						LOGD("NODE_EVENT_TYPE: %s", event_type);
-						LOGD("NODE_UUID      : %s", node_uuid);
-						LOGD("NODE_NAME      : %s", node_name);
+						LOGI("-----------------");
+						LOGI("NODE_EVENT_TYPE: %s", event_type);
+						LOGI("NODE_UUID      : %s", node_uuid);
+						LOGI("NODE_NAME      : %s", node_name);
 						if (streq(event_type, "ENTER")) {
 							handle_enter(node, event, node_uuid, node_name);
 						} else if (streq(event_type, "JOIN")) {

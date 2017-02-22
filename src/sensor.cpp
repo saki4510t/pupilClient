@@ -144,6 +144,8 @@ int Sensor::start(/*void *_zmq_context,*/
 
 	ENTER();
 
+	MARK("start Sensor %s", sensor_name.c_str());
+
 	int result = 0;
 	if (!isRunning()) {
 		if (LIKELY(zmq_context && command && notify && data)) {
@@ -181,6 +183,8 @@ err:
 /*public*/
 int Sensor::stop() {
 	ENTER();
+
+	MARK("stop Sensor %s", sensor_name.c_str());
 
 	const bool b = isRunning();
 	is_running = false;
