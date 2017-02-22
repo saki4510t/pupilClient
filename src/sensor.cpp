@@ -373,10 +373,10 @@ void Sensor::zmq_run() {
 				}
 			}
 
-			if (((++cnt % 100) == 0) && need_refresh_controls) {
+			if (((++cnt % 30) == 0) && need_refresh_controls) {
 				need_refresh_controls = request_refresh_controls();
 			}
-			if (first_time && (cnt % 100) == 0) {
+			if (first_time && (cnt % 50) == 0) {
 				first_time = false;
 				// テスト用に問答無用でpublishingをonにする
 				set_control_value("streaming", true);
@@ -461,7 +461,7 @@ int Sensor::receive_data() {
 				&& (result <= (int)(sizeof(publish_header_t)))) {
 				// receive publishing header
 				publish_header_t header;
-				header.reserved_le = 0;
+				memset(&header, 0, sizeof(publish_header_t));
 				memcpy(&header, zmq_msg_data(&msg), result);
 				zmq_msg_close(&msg);
 				//

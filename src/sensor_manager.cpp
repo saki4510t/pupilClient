@@ -469,6 +469,8 @@ void SensorManager::zyre_run() {
 							handle_leave(node, event, node_uuid, node_name);
 						} else if (streq(event_type, "EXIT")) {
 							handle_exit(node, event, node_uuid, node_name);
+						} else if (streq(event_type, "EVASIVE")) {
+							// ignore
 						} else {
 							LOGW("unexpected event type:%s", event_type);
 						}

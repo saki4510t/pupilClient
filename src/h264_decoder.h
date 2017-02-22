@@ -32,7 +32,6 @@ typedef enum COLOR_FORMAT {
 class H264Decoder {
 private:
 	enum AVPixelFormat color_format;
-	struct AVCodec *codec;
 	struct AVCodecContext *codec_context;
 	struct AVFrame *src;
 	struct AVFrame *dst;
@@ -43,6 +42,7 @@ public:
 	H264Decoder(const color_format_t &color_format = COLOR_FORMAT_YUV420);
 	virtual ~H264Decoder();
 
+	inline const bool is_initialized() const { return codec_context != NULL; };
 	inline const bool is_frame_ready() const { return frame_ready; };
 	inline const int width() { return codec_context ? codec_context->width : 0; };
 	inline const int height() { return codec_context ? codec_context->height : 0; };

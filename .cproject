@@ -51,10 +51,11 @@
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1619835641" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
 								<option id="gnu.cpp.link.option.libs.714793710" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" useByScannerDiscovery="false" valueType="libs">
 									<listOptionValue builtIn="false" value="pthread"/>
-									<listOptionValue builtIn="false" value="avformat"/>
-									<listOptionValue builtIn="false" value="swscale"/>
 									<listOptionValue builtIn="false" value="avcodec"/>
+									<listOptionValue builtIn="false" value="avdevice"/>
+									<listOptionValue builtIn="false" value="avformat"/>
 									<listOptionValue builtIn="false" value="avutil"/>
+									<listOptionValue builtIn="false" value="swscale"/>
 									<listOptionValue builtIn="false" value="zyre"/>
 									<listOptionValue builtIn="false" value="czmq"/>
 									<listOptionValue builtIn="false" value="zmq"/>

@@ -57,10 +57,14 @@ int IMUSensor::handle_frame_data(const std::string &identity, const publish_head
 	ENTER();
 
 	int result = -1;
-	if (LIKELY(size > 0)) {
-		LOGD("actual bytes=%lu", size);
+	const uint32_t sequence = letoh32_unaligned(&header.imu.sequence_le);
+	const uint32_t data_bytes = letoh32_unaligned(&header.imu.data_bytes_le);
+	if (LIKELY((size > 0) && (size == data_bytes))) {
+		LOGD("actual bytes=%lu,sequence=%u", size, sequence);
 		// FIXME 未実装
 		result = 0;
+	} else {
+		LOGW("data_bytes=%u, received=%lu", data_bytes, size);
 	}
 
 	RETURN(result ,int);
