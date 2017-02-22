@@ -137,11 +137,6 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 
 	int result = 0;
 
-	if (UNLIKELY(!ofs.is_open())) {
-		ofs.open("dump.h264", std::ios::binary | std::ios::out | std::ios::trunc);
-	}
-	ofs.write((const char *)data, size);
-
 	if (UNLIKELY((h264_width != width) || (h264_height != height))) {
 		LOGI("video size changed, re-create decoder");
 		SAFE_DELETE(h264);
@@ -152,6 +147,12 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 		h264 = new media::H264Decoder();
 		need_wait_iframe = true;
 	}
+
+	if (UNLIKELY(!ofs.is_open())) {
+		ofs.open("dump.h264", std::ios::binary | std::ios::out | std::ios::trunc);
+	}
+	ofs.write((const char *)data, size);
+
 	if (need_wait_iframe) {
 		LOGD("waiting I-frame");
 		if (is_iframe(size, data)) {
@@ -174,8 +175,8 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 				if (LIKELY(output_bytes <= h264_output.size())) {
 					int64_t result_pts;
 					int bytes = h264->get_output_buffer(h264_output.data(), h264_output.size(), result_pts);
-					if (bytes > 0) {
-						LOGI("get_output_buffer:bytes=%d,result_pts=%ld", bytes, result_pts);
+					if (LIKELY(bytes > 0)) {
+						// success, do something
 					} else {
 						LOGE("H264Decoder::get_output_buffer failed");
 					}
@@ -278,7 +279,6 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 //					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
 //					LOGI("SPS:%s", bin2hex(&payload[0], 128).c_str());
 					sps = true;
-					result = true;
 					ret = find_annexb(&payload[1], sz - 1, &payload);
 					if (LIKELY(!ret)) {
 						i = payload - data;
@@ -290,17 +290,18 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 				}
 				case NAL_UNIT_PICTURE_PARAM_SET:
 				{
-					LOGD("PPSが見つかった...次のannexbマーカーを探す");
-//					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
-//					LOGI("PPS:%s", bin2hex(&payload[0], 128).c_str());
-					pps = true;
-					result = true;
-					ret = find_annexb(&payload[1], sz  -1, &payload);
-					if (LIKELY(!ret)) {
-						i = payload - data;
-						sz = size - i;
-					} else {
-						goto end;
+					if (LIKELY(sps)) {
+						LOGD("PPSが見つかった...次のannexbマーカーを探す");
+//						LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
+//						LOGI("PPS:%s", bin2hex(&payload[0], 128).c_str());
+						pps = true;
+						ret = find_annexb(&payload[1], sz  -1, &payload);
+						if (LIKELY(!ret)) {
+							i = payload - data;
+							sz = size - i;
+						} else {
+							goto end;
+						}
 					}
 					break;
 				}
@@ -327,14 +328,15 @@ const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
 					result = sps && pps;
 					goto end;
 				} // end of switch (type)
-			}
+			} // end of for
+end:
+			result = sps && pps;
 		} else {
 			LOGD("annexbマーカーが見つからなかった");
 		}
 	} else {
 		LOGW("短すぎる");
 	}
-end:
 	RETURN(result, bool);
 }
 

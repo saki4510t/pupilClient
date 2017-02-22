@@ -5,7 +5,7 @@
  *      Author: saki
  */
 
-#if 0	// set 0 if you need debug log, otherwise set 1
+#if 1	// set 0 if you need debug log, otherwise set 1
 	#ifndef LOG_NDEBUG
 		#define LOG_NDEBUG
 	#endif
@@ -163,20 +163,20 @@ int H264Decoder::set_input_buffer(uint8_t *nal_units, const size_t &bytes, const
 			break;
 		}
 	}
+ret:
 #else
 	int frame_finished = 0;
 	result = avcodec_decode_video2(codec_context, src, &frame_finished, &packet);
 	if ((result > 0) && frame_finished) {
-		LOGI("got frame");
+		LOGD("got frame");
 		frame_ready = true;
 		result = 0;
 	}
 #endif
-ret:
 	RETURN(result, int);
 }
 
-int H264Decoder::get_output_buffer(uint8_t *buf, const size_t &capacity, int64_t &result_pts) {
+int H264Decoder::get_output_buffer(uint8_t *result_buf, const size_t &capacity, int64_t &result_pts) {
 
 	ENTER();
 
@@ -187,7 +187,7 @@ int H264Decoder::get_output_buffer(uint8_t *buf, const size_t &capacity, int64_t
 
 	if (LIKELY(capacity >= result)) {
 		if (color_format == codec_context->pix_fmt) {
-			memcpy(src->data, buf, result);
+//			memcpy(result_buf, src->data[0], result);	// 単純コピーじゃうまく動かない(420spに合わせてコピーしないとだめみたい)
 		} else {
 			const int width = this->width();
 			const int height = this->height();
@@ -195,12 +195,13 @@ int H264Decoder::get_output_buffer(uint8_t *buf, const size_t &capacity, int64_t
 				sws_context = sws_getContext(width, height, codec_context->pix_fmt,
 					width, height, color_format, SWS_FAST_BILINEAR, NULL, NULL, NULL);
 			}
-			avpicture_fill((AVPicture *)dst, buf, color_format, width, height);
+			avpicture_fill((AVPicture *)dst, result_buf, color_format, width, height);
 			sws_scale(sws_context, (const uint8_t **)src->data, src->linesize, 0, height,
 				dst->data, dst->linesize);
 		}
 		frame_ready = false;
-		result_pts = src->pkt_pts;
+		result_pts = src->pts;
+		LOGI("%dx%d,pts=%ld", src->width, src->height, result_pts);
 		if (UNLIKELY(result_pts == AV_NOPTS_VALUE)) {
 			LOGW("No PTS");
 		}
