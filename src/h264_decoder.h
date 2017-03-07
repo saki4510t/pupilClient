@@ -6,7 +6,7 @@
  */
 
 #ifndef H264_DECODER_H_
-#define H264_DECODER_H_	int input(uint8_t *nal_units, const size_t bytes, const long presentation_time_us);
+#define H264_DECODER_H_
 
 #define USE_NEW_AVCODEC_API 1
 
