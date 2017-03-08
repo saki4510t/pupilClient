@@ -36,6 +36,7 @@ int main(int argc, const char* argv[]) {
 
 	serenegiant::sensor::SensorManager manager;
 
+	system("stty -echo -icanon min 1 time 0");
 	manager.start();
 	for ( ; manager.isRunning() ; ) {
 		// 何か入力するまで実行する
@@ -52,6 +53,7 @@ int main(int argc, const char* argv[]) {
 		if (c != EOF) break;
 	}
 	manager.stop();
+	system("stty echo -icanon min 1 time 0");
 
 	RETURN(0, int);
 }
