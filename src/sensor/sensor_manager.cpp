@@ -36,6 +36,7 @@ const char *target_group = "pupil-mobile";
 /*public*/
 SensorManager::SensorManager()
 :	is_running(false),
+	is_recording(false),
 	zyre_thread() {
 
 	ENTER();
