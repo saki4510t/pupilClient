@@ -37,16 +37,6 @@ private:
 	AVCodecContext *codec_context;
 	AVStream *stream;
 
-	int64_t next_pts;
-	int sample_count;
-
-	AVFrame *frame;
-	AVFrame *frame_tmp;
-
-	float t, tinc, tinc2;
-
-	struct SwsContext *sws_context;
-	struct SwrContext *swr_context;
 protected:
 	/**
 	 * initialize MediaStream

@@ -27,14 +27,7 @@ namespace media {
 /*public*/
 MediaStream::MediaStream(AVCodecContext *_codec_context)
 :	codec_context(_codec_context),
-	stream(NULL),
-	next_pts(0),
-	sample_count(0),
-	frame(NULL),
-	frame_tmp(NULL),
-	t(0), tinc(0), tinc2(0),
-	sws_context(NULL),
-	swr_context(NULL) {
+	stream(NULL) {
 
 	ENTER();
 
@@ -57,23 +50,6 @@ MediaStream::~MediaStream() {
 void MediaStream::release() {
 
 	ENTER();
-
-	if (frame) {
-		av_frame_free(&frame);
-		frame = NULL;
-	}
-	if (frame_tmp) {
-		av_frame_free(&frame_tmp);
-		frame_tmp = NULL;
-	}
-	if (sws_context) {
-		sws_freeContext(sws_context);
-		sws_context = NULL;
-	}
-	if (swr_context) {
-		swr_free(&swr_context);
-		swr_context = NULL;
-	}
 
 	EXIT();
 }
