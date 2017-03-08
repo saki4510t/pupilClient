@@ -47,6 +47,7 @@ SensorManager::SensorManager()
 SensorManager::~SensorManager() {
 	ENTER();
 
+	stop_recording();
 	stop();
 	remove_sensor_all();
 
@@ -86,6 +87,44 @@ int SensorManager::start() {
 	}
 
 	RETURN(result, int);
+}
+
+/*public*/
+int SensorManager::start_recording() {
+
+	ENTER();
+
+	int result = -1;
+	if (isRunning() && !isRecording()) {
+		Mutex::Autolock lock(sensor_lock);
+		for (auto itr: sensors) {
+			Sensor *sensor = itr.second;
+			sensor->start_recording(sensor->uuid() + ".mp4");
+			is_recording |= sensor->isRecording();
+		}
+		if (isRecording()) {
+			result = 0;
+		}
+	}
+
+	RETURN(result, int);
+}
+
+/*public*/
+void SensorManager::stop_recording() {
+
+	ENTER();
+
+	if (isRecording()) {
+		Mutex::Autolock lock(sensor_lock);
+		for (auto itr: sensors) {
+			Sensor *sensor = itr.second;
+			sensor->stop_recording();
+		}
+		is_recording = false;
+	}
+
+	EXIT();
 }
 
 //================================================================================

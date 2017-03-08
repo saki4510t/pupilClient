@@ -21,6 +21,7 @@ class Sensor;
 class SensorManager {
 private:
 	volatile bool is_running;
+	volatile bool is_recording;
 	mutable Mutex sensor_lock;
 	std::multimap<std::string, Sensor*> sensors;
 	pthread_t zyre_thread;
@@ -56,6 +57,10 @@ public:
 	int start();
 	int stop();
 	inline const bool isRunning() const { return is_running; };
+
+	int start_recording();
+	void stop_recording();
+	inline const bool isRecording() const { return is_recording; }
 };
 
 }	// namespace sensor

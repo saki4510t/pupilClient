@@ -39,7 +39,16 @@ int main(int argc, const char* argv[]) {
 	manager.start();
 	for ( ; ; ) {
 		// 何か入力するまで実行する
-		char c = getchar();
+		const char c = getchar();
+		if ((c == 'r') || (c == 'R')) {
+			// r|Rなら録画開始/停止
+			if (manager.isRecording()) {
+				manager.stop_recording();
+			} else {
+				manager.start_recording();
+			}
+			continue;
+		}
 		if (c != EOF) break;
 	}
 	manager.stop();
