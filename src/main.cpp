@@ -37,7 +37,7 @@ int main(int argc, const char* argv[]) {
 	serenegiant::sensor::SensorManager manager;
 
 	manager.start();
-	for ( ; ; ) {
+	for ( ; manager.isRunning() ; ) {
 		// 何か入力するまで実行する
 		const char c = getchar();
 		if ((c == 'r') || (c == 'R')) {

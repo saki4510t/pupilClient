@@ -148,7 +148,7 @@ int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &he
 
 	// FIXME not implemented, just write to file now.
 	if (UNLIKELY(!ofs.is_open())) {
-		ofs.open("dump.mjpeg", std::ios::binary | std::ios::out | std::ios::trunc);
+		ofs.open(uuid() + "dump.mjpeg", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
 	ofs.write((const char *)data, size);
 
@@ -178,7 +178,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 	}
 
 	if (UNLIKELY(!ofs.is_open())) {
-		ofs.open("dump.h264", std::ios::binary | std::ios::out | std::ios::trunc);
+		ofs.open(uuid() + "dump.h264", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
 	ofs.write((const char *)data, size);
 
@@ -252,7 +252,7 @@ int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &heig
 
 	// FIXME not implemented, just write to file now.
 	if (UNLIKELY(!ofs.is_open())) {
-		ofs.open("dump.vp8", std::ios::binary | std::ios::out | std::ios::trunc);
+		ofs.open(uuid() + "dump.vp8", std::ios::binary | std::ios::out | std::ios::trunc);
 	}
 	ofs.write((const char *)data, size);
 
