@@ -8,8 +8,7 @@
 #ifndef MP4_WRITER_H_
 #define MP4_WRITER_H_
 
-#define USE_NEW_AVCODEC_API 1
-
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -19,9 +18,14 @@ extern "C" {
 	#include <libavformat/avformat.h>
 	#include <libavcodec/avcodec.h>
 	#include <libswscale/swscale.h>
-#if USE_NEW_AVCODEC_API
+	#include <libswresample/swresample.h>
+
+	#include <libavutil/avassert.h>
 	#include <libavutil/imgutils.h>
-#endif
+	#include <libavutil/channel_layout.h>
+	#include <libavutil/mathematics.h>
+	#include <libavutil/timestamp.h>
+	#include <libavutil/opt.h>
 }
 
 namespace serenegiant {
@@ -31,12 +35,32 @@ class MediaStream;
 
 class Mp4Writer {
 private:
+	const std::string file_name;
+	AVFormatContext *format_context;
+	AVOutputFormat *format;
+	AVDictionary *option;
+	std::vector<MediaStream *> streams;
+
+	int find_stream(const MediaStream *stream);
+	void free_streams();
 protected:
 	bool write_video_frame(AVFormatContext *format_context, MediaStream &stream, AVPacket &pkt, const long &presentation_time_us);
 	void close_stream(AVFormatContext *format_context, MediaStream &stream);
 public:
-	Mp4Writer();
+	Mp4Writer(const std::string &file_name);
 	virtual ~Mp4Writer();
+	virtual void release();
+
+	/**
+	 * add MediaStream,
+	 * should call this for each MediaStream before #start
+	 * should not delete stream by yourself
+	 * @param stream
+	 * @return if return >= 0, success otherwise return negative value,
+	 */
+	virtual int add(MediaStream *stream);
+	virtual int start();
+	virtual void stop();
 };
 
 } /* namespace media */

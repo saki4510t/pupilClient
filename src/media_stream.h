@@ -8,8 +8,6 @@
 #ifndef MEDIA_STREAM_H_
 #define MEDIA_STREAM_H_
 
-#define USE_NEW_AVCODEC_API 1
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -19,18 +17,47 @@ extern "C" {
 	#include <libavformat/avformat.h>
 	#include <libavcodec/avcodec.h>
 	#include <libswscale/swscale.h>
-#if USE_NEW_AVCODEC_API
+	#include <libswresample/swresample.h>
+
+	#include <libavutil/avassert.h>
 	#include <libavutil/imgutils.h>
-#endif
+	#include <libavutil/channel_layout.h>
+	#include <libavutil/mathematics.h>
+	#include <libavutil/timestamp.h>
 }
 
 namespace serenegiant {
 namespace media {
 
+class MP4Writer;
+
 class MediaStream {
+friend class MP4Writer;
+private:
+	AVStream *stream;
+
+	int64_t next_pts;
+	int sample_count;
+
+	AVFrame *frame;
+	AVFrame *frame_tmp;
+
+	float t, tinc, tinc2;
+
+	struct SwsContext *sws_context;
+	struct SwrContext *swr_context;
+protected:
+	/**
+	 * initialize MediaStream
+	 * @param format_context
+	 * @param codec_id
+	 * @return return >=0 if success otherwise return negative value
+	 */
+	virtual int init(AVFormatContext *format_context, const enum AVCodecID &codec_id);
 public:
 	MediaStream();
 	virtual ~MediaStream();
+	virtual void release();
 };
 
 } /* namespace media */
