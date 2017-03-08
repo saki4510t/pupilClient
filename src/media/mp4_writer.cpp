@@ -31,7 +31,8 @@ Mp4Writer::Mp4Writer(const std::string &_file_name)
 :	file_name(_file_name),
 	format_context(NULL),
 	format(NULL),
-	option(NULL) {
+	option(NULL),
+	is_running(false) {
 
 	ENTER();
 
@@ -142,6 +143,7 @@ int Mp4Writer::start() {
 			LOGE("avformat_write_header failed, err=%s", av_error(result).c_str());
 			goto ret;
 		}
+		is_running = true;
 	} else {
 		LOGE("could not start because no MediaStream were added");
 	}
@@ -154,6 +156,7 @@ ret:
 void Mp4Writer::stop() {
 	ENTER();
 
+	is_running = false;
 	if (LIKELY(format_context) && !streams.empty()) {
 		av_write_trailer(format_context);
 		release();

@@ -21,6 +21,7 @@
 
 #include "sensor_uvc.h"
 #include "h264_decoder.h"
+#include "video_stream.h"
 
 namespace serenegiant {
 namespace sensor {
@@ -37,7 +38,9 @@ UVCSensor::UVCSensor(const char *uuid, const char *name)
 	error_frames(0),
 	skipped_frames(0),
 	received_bytes(0),
-	start_time(0) {
+	start_time(0),
+	mp4_writer(NULL),
+	video_stream_index(-1) {
 
 	ENTER();
 
@@ -51,6 +54,7 @@ UVCSensor::~UVCSensor() {
 	ENTER();
 
 	SAFE_DELETE(h264);
+	SAFE_DELETE(mp4_writer);
 	ofs.close();
 
 	EXIT();
@@ -148,6 +152,9 @@ int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &he
 	}
 	ofs.write((const char *)data, size);
 
+	// XXX if you need to save images as mp4, you need to decode mjpeg frames,
+	// encode them into h.264 frames and pass them to Mp4Writer
+
 	RETURN(result, int);
 }
 
@@ -189,6 +196,19 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 		result = h264->set_input_buffer((uint8_t *)data, size, presentation_time_us);
 		if (!result) {
 			if (h264->is_frame_ready()) {
+				writer_lock.lock();
+				{
+					if (mp4_writer) {
+						if (UNLIKELY(!mp4_writer->isRunning())) {
+							video_stream_index = mp4_writer->add(new media::VideoStream(h264->get_context()));
+							mp4_writer->start();
+						}
+						if (video_stream_index >= 0) {
+							mp4_writer->set_input_buffer(video_stream_index, (uint8_t *)data, size, presentation_time_us);
+						}
+					}
+				}
+				writer_lock.unlock();
 				const size_t output_bytes = h264->get_output_bytes();
 				if (UNLIKELY(output_bytes > h264_output.size())) {
 					LOGI("resize %lu => %lu", h264_output.size(), output_bytes);
@@ -236,7 +256,42 @@ int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &heig
 	}
 	ofs.write((const char *)data, size);
 
+	// XXX if you need to save images as mp4, you need to decode vp8 frames,
+	// encode them into h.264 frames and pass them to Mp4Writer
+
 	RETURN(result, int);
+}
+
+/*virtual*/
+/*protected*/
+int UVCSensor::internal_start_recording(const std::string &file_name) {
+
+	ENTER();
+
+	int result = 0;
+	Mutex::Autolock lock(writer_lock);
+
+	if (UNLIKELY(!mp4_writer)) {
+		mp4_writer = new media::Mp4Writer(file_name);
+		need_wait_iframe = true;
+	}
+
+	RETURN(result, int);
+}
+
+/*virtual*/
+/*protected*/
+void UVCSensor::internal_stop_recording() {
+
+	ENTER();
+
+	Mutex::Autolock lock(writer_lock);
+
+	if (mp4_writer) {
+		SAFE_DELETE(mp4_writer);
+	}
+
+	EXIT();
 }
 
 /**

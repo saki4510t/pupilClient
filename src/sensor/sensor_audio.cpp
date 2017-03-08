@@ -70,5 +70,27 @@ int AudioSensor::handle_frame_data(const std::string &identity, const publish_he
 	RETURN(result ,int);
 }
 
+/*virtual*/
+/*protected*/
+int AudioSensor::internal_start_recording(const std::string &file_name) {
+
+	ENTER();
+
+	// FIXME do nothing now
+
+	RETURN(-1, int);
+}
+
+/*virtual*/
+/*protected*/
+void AudioSensor::internal_stop_recording() {
+
+	ENTER();
+
+	// FIXME do nothing now
+
+	EXIT();
+}
+
 }	// namespace sensor
 }	// namespace serenegiant

@@ -41,6 +41,7 @@ private:
 	AVOutputFormat *format;
 	AVDictionary *option;
 	std::vector<MediaStream *> streams;
+	volatile bool is_running;
 
 	int find_stream(const MediaStream *stream);
 	void free_streams();
@@ -63,6 +64,8 @@ public:
 	virtual int add(MediaStream *stream);
 	virtual int start();
 	virtual void stop();
+	inline const bool isRunning() const { return is_running; };
+
 	int set_input_buffer(const int stream_index, uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us);
 };
 

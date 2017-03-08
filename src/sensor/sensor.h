@@ -35,6 +35,8 @@ private:
 	void zmq_run();
 	int zmq_start();
 	void zmq_stop();
+
+	volatile bool is_recording;
 protected:
 	virtual int receive_notify();
 	virtual int receive_data();
@@ -49,6 +51,8 @@ protected:
 	virtual int request_refresh_controls();
 	virtual int set_control_value(const std::string &control_id, const bool &value);
 	virtual int set_control_value(const std::string &control_id, const int &value);
+	virtual int internal_start_recording(const std::string &file_name) = 0;
+	virtual void internal_stop_recording() = 0;
 public:
 	Sensor(const sensor_type_t &sensor_type, const char *uuid, const char *name);
 	virtual ~Sensor();
@@ -60,6 +64,10 @@ public:
 	virtual int start(const char *command, const char *notify, const char *data);
 	virtual int stop();
 	inline const bool isRunning() const { return is_running; };
+
+	int start_recording(const std::string &file_name);
+	void stop_recording();
+	inline const bool isRecording() const  { return is_recording; };
 };
 
 }	// namespace sensor

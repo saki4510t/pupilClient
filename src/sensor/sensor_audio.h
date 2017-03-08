@@ -17,6 +17,8 @@ class AudioSensor: public virtual Sensor {
 protected:
 	virtual int handle_notify_update(const std::string &identity, const std::string &payload);
 	virtual int handle_frame_data(const std::string &identity, const publish_header_t &header, const size_t &size, const uint8_t *data);
+	virtual int internal_start_recording(const std::string &file_name);
+	virtual void internal_stop_recording();
 public:
 	AudioSensor(const char *uuid, const char *name);
 	virtual ~AudioSensor();

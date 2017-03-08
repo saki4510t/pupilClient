@@ -58,7 +58,8 @@ Sensor::Sensor(const sensor_type_t &_sensor_type, const char *uuid, const char *
 	command_socket(NULL),
 	notify_socket(NULL),
 	data_socket(NULL),
-	zmq_thread() {
+	zmq_thread(),
+	is_recording(false) {
 
 	ENTER();
 
@@ -75,6 +76,8 @@ Sensor::~Sensor() {
 	ENTER();
 
 	LOGI("Sensor#Destructor");
+
+	stop_recording();
 	stop();
 
 	if (zmq_context) {
@@ -197,6 +200,36 @@ int Sensor::stop() {
 	}
 
 	RETURN(0, int);
+}
+
+int Sensor::start_recording(const std::string &file_name) {
+
+	ENTER();
+
+	int result = -1;
+
+	if (!isRecording()) {
+		result = internal_start_recording(file_name);
+		if (LIKELY(!result)) {
+			is_recording = true;
+		} else {
+			internal_stop_recording();
+		}
+	}
+
+	RETURN(result, int);
+}
+
+void Sensor::stop_recording() {
+
+	ENTER();
+
+	if (isRecording()) {
+		is_recording = false;
+		internal_stop_recording();
+	}
+
+	EXIT();
 }
 
 //================================================================================

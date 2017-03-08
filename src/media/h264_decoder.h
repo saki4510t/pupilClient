@@ -46,6 +46,7 @@ public:
 	H264Decoder(const color_format_t &color_format = COLOR_FORMAT_YUV420);
 	virtual ~H264Decoder();
 
+	inline struct AVCodecContext *get_context() { return codec_context; };
 	inline const bool is_initialized() const { return codec_context != NULL; };
 	inline const bool is_frame_ready() const { return frame_ready; };
 	inline const int width() { return codec_context ? codec_context->width : 0; };

@@ -70,5 +70,28 @@ int IMUSensor::handle_frame_data(const std::string &identity, const publish_head
 	RETURN(result ,int);
 }
 
+/*virtual*/
+/*protected*/
+int IMUSensor::internal_start_recording(const std::string &file_name) {
+
+	ENTER();
+
+	// FIXME do nothing now
+
+	RETURN(-1, int);
+}
+
+/*virtual*/
+/*protected*/
+void IMUSensor::internal_stop_recording() {
+
+	ENTER();
+
+	// FIXME do nothing now
+
+	EXIT();
+}
+
+
 } /* namespace sensor */
 } /* namespace serenegiant */

@@ -14,9 +14,12 @@
 
 #include "sensor.h"
 #include "h264_decoder.h"
+#include "mp4_writer.h"
 
 namespace serenegiant {
 namespace sensor {
+
+using namespace android;
 
 typedef enum nal_unit_type {
 	NAL_UNIT_UNSPECIFIED = 0,
@@ -66,6 +69,10 @@ private:
 	uint32_t skipped_frames;
 	size_t received_bytes;
 	nsecs_t start_time;
+
+	mutable Mutex writer_lock;
+	media::Mp4Writer *mp4_writer;
+	int video_stream_index;
 protected:
 	virtual int handle_notify_update(const std::string &identity, const std::string &payload);
 	virtual int handle_frame_data(const std::string &identity,
@@ -77,6 +84,8 @@ protected:
 	int handle_frame_data_vp8(const uint32_t &width, const uint32_t &height,
 		const size_t &size, const uint8_t *data, const int64_t &presentation_time_us);
 	const bool is_iframe(const size_t &size, const uint8_t *data);
+	virtual int internal_start_recording(const std::string &file_name);
+	virtual void internal_stop_recording();
 public:
 	UVCSensor(const char *uuid, const char *name);
 	virtual ~UVCSensor();
