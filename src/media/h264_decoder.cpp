@@ -19,18 +19,12 @@
 #include <string>
 
 #include "utilbase.h"
+#include "ffmpeg_utils.h"
 
 #include "h264_decoder.h"
 
 namespace serenegiant {
 namespace media {
-
-static std::string av_error(const int errnum) {
-	char errbuf[AV_ERROR_MAX_STRING_SIZE + 1];
-	av_strerror(errnum, errbuf, AV_ERROR_MAX_STRING_SIZE);
-	errbuf[AV_ERROR_MAX_STRING_SIZE] = '\0';
-	return std::string(errbuf);
-}
 
 /*public*/
 H264Decoder::H264Decoder(const color_format_t &_color_format)

@@ -34,6 +34,7 @@ class Mp4Writer;
 class MediaStream {
 friend class Mp4Writer;
 private:
+	AVCodecContext *codec_context;
 	AVStream *stream;
 
 	int64_t next_pts;
@@ -54,10 +55,13 @@ protected:
 	 * @return return >=0 if success otherwise return negative value
 	 */
 	int init(AVFormatContext *format_context, const enum AVCodecID &codec_id);
+	virtual int init_stream(AVFormatContext *format_context,
+		const enum AVCodecID &codec_id, AVStream *stream) = 0;
 public:
-	MediaStream();
+	MediaStream(AVCodecContext *codec_context);
 	virtual ~MediaStream();
 	virtual void release();
+
 };
 
 } /* namespace media */

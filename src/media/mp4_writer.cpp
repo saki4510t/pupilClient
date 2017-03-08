@@ -17,6 +17,7 @@
 #endif
 
 #include "utilbase.h"
+#include "ffmpeg_utils.h"
 
 #include "media_stream.h"
 #include "video_stream.h"
@@ -42,6 +43,9 @@ Mp4Writer::Mp4Writer(const std::string &_file_name)
 			format_context = NULL;
 		}
 		result = avformat_alloc_output_context2(&format_context, NULL, "mp4", file_name.c_str());
+		if (result < 0) {
+			LOGE("avformat_alloc_output_context2 failed, err=%s", av_error(result).c_str());
+		}
 	}
 
 	if (UNLIKELY(format_context)) {
@@ -126,8 +130,20 @@ int Mp4Writer::start() {
 	}
 	if (LIKELY(!streams.empty())) {
 		// FIXME do something
+		if (format && !(format->flags & AVFMT_NOFILE)) {
+			result = avio_open(&format_context->pb, file_name.c_str(), AVIO_FLAG_WRITE);
+			if (UNLIKELY(result < 0)) {
+				LOGE("avio_open failed, err=%s", av_error(result).c_str());
+				goto ret;
+			}
+		}
+		result = avformat_write_header(format_context, &option);
+		if (UNLIKELY(result < 0)) {
+			LOGE("avformat_write_header failed, err=%s", av_error(result).c_str());
+			goto ret;
+		}
 	} else {
-		LOGE("cound not start because no MediaStream were added");
+		LOGE("could not start because no MediaStream were added");
 	}
 ret:
 	RETURN(result, int);
@@ -139,11 +155,36 @@ void Mp4Writer::stop() {
 	ENTER();
 
 	if (LIKELY(format_context) && !streams.empty()) {
-		// FIXME do something
-		free_streams();
+		av_write_trailer(format_context);
+		release();
 	}
 
 	EXIT();
+}
+
+/*public*/
+int Mp4Writer::set_input_buffer(const int stream_index, uint8_t *nal_units,
+	const size_t &bytes, const int64_t &presentation_time_us) {
+
+	ENTER();
+
+	int result = -1;
+
+	MediaStream *stream = get_stream(stream_index);
+	if (LIKELY(stream)) {
+		AVPacket packet;
+
+		av_init_packet(&packet);
+		packet.data = nal_units;
+		packet.size = bytes;
+		packet.pts = presentation_time_us;
+		packet.stream_index = stream->stream->index;
+
+		result = av_interleaved_write_frame(format_context, &packet);
+
+	}
+
+	RETURN(result, int);
 }
 
 /*private*/

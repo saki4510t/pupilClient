@@ -14,8 +14,11 @@ namespace serenegiant {
 namespace media {
 
 class VideoStream: public virtual MediaStream {
+protected:
+	virtual int init_stream(AVFormatContext *format_context,
+		const enum AVCodecID &codec_id, AVStream *stream);
 public:
-	VideoStream();
+	VideoStream(AVCodecContext *codec_context);
 	virtual ~VideoStream();
 };
 

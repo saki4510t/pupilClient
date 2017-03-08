@@ -58,11 +58,12 @@ public:
 	 * should call this for each MediaStream before #start
 	 * should not delete stream by yourself
 	 * @param stream
-	 * @return if return >= 0, success otherwise return negative value,
+	 * @return if success, return >= 0 as stream index, otherwise return negative value,
 	 */
 	virtual int add(MediaStream *stream);
 	virtual int start();
 	virtual void stop();
+	int set_input_buffer(const int stream_index, uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us);
 };
 
 } /* namespace media */
