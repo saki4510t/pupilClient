@@ -19,8 +19,6 @@
 namespace serenegiant {
 namespace sensor {
 
-using namespace android;
-
 typedef enum nal_unit_type {
 	NAL_UNIT_UNSPECIFIED = 0,
 	NAL_UNIT_CODEC_SLICE = 1,			// Coded slice of a non-IDR picture == PFrame for AVC
