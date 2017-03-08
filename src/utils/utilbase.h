@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#include "localdefines.h"
+#include "../localdefines.h"
 
 #define		SAFE_FREE(p)				{ if (p) { free((p)); (p) = NULL; } }
 #define		SAFE_DELETE(p)				{ if (p) { delete (p); (p) = NULL; } }

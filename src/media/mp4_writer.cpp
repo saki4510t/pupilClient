@@ -19,6 +19,7 @@
 #include "utilbase.h"
 
 #include "media_stream.h"
+#include "video_stream.h"
 #include "mp4_writer.h"
 
 namespace serenegiant {
@@ -93,7 +94,7 @@ int Mp4Writer::add(MediaStream *stream) {
 		int ix = find_stream(stream);
 		if (LIKELY(ix < 0)) {
 			enum AVCodecID codec_id = AV_CODEC_ID_NONE;
-			if (dynamic_cast<VideoStream>(stream)) {
+			if (dynamic_cast<VideoStream *>(stream)) {
 				codec_id = format->video_codec;
 			} else {
 				LOGW("unknown MediaStream");
@@ -153,7 +154,7 @@ int Mp4Writer::find_stream(const MediaStream *stream) {
 	int result = -1, ix = 0;
 	if (!streams.empty()) {
 		for (auto itr: streams) {
-			if (stream == *itr) {
+			if (stream == itr) {
 				result = ix;
 				break;
 			}
@@ -170,7 +171,7 @@ void Mp4Writer::free_streams() {
 
 	if (!streams.empty()) {
 		for (auto itr: streams) {
-			MediaStream *stream = *itr;
+			MediaStream *stream = itr;
 			SAFE_DELETE(stream);
 		}
 		streams.clear();
@@ -178,6 +179,19 @@ void Mp4Writer::free_streams() {
 	}
 
 	EXIT();
+}
+
+/*private*/
+MediaStream *Mp4Writer::get_stream(const int &index) {
+	ENTER();
+
+	MediaStream *result = NULL;
+
+	if ((index >= 0) && (index < (int)streams.size())) {
+		result = streams[index];
+	}
+
+	RET(result);
 }
 
 } /* namespace media */

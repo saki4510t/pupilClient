@@ -9,6 +9,7 @@
 #define MP4_WRITER_H_
 
 #include <vector>
+#include <string>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -43,6 +44,7 @@ private:
 
 	int find_stream(const MediaStream *stream);
 	void free_streams();
+	MediaStream *get_stream(const int &index);
 protected:
 	bool write_video_frame(AVFormatContext *format_context, MediaStream &stream, AVPacket &pkt, const long &presentation_time_us);
 	void close_stream(AVFormatContext *format_context, MediaStream &stream);

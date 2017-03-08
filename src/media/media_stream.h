@@ -29,10 +29,10 @@ extern "C" {
 namespace serenegiant {
 namespace media {
 
-class MP4Writer;
+class Mp4Writer;
 
 class MediaStream {
-friend class MP4Writer;
+friend class Mp4Writer;
 private:
 	AVStream *stream;
 
@@ -53,7 +53,7 @@ protected:
 	 * @param codec_id
 	 * @return return >=0 if success otherwise return negative value
 	 */
-	virtual int init(AVFormatContext *format_context, const enum AVCodecID &codec_id);
+	int init(AVFormatContext *format_context, const enum AVCodecID &codec_id);
 public:
 	MediaStream();
 	virtual ~MediaStream();

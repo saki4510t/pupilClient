@@ -74,7 +74,6 @@ void MediaStream::release() {
 	EXIT();
 }
 
-/*virtual*/
 /*protected/friend*/
 int MediaStream::init(AVFormatContext *format_context, const enum AVCodecID &codec_id) {
 	ENTER();
@@ -88,7 +87,7 @@ int MediaStream::init(AVFormatContext *format_context, const enum AVCodecID &cod
 	} else {
 		LOGE("avformat_new_stream failed, errno=%d", errno);
 	}
-ret:
+
 	RETURN(result, int);
 }
 
