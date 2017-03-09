@@ -19,6 +19,7 @@
 #include <string>
 
 #include "utilbase.h"
+#include "h264_utils.h"
 #include "ffmpeg_utils.h"
 
 #include "h264_decoder.h"

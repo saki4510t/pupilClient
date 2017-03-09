@@ -5,7 +5,7 @@
  *      Author: saki
  */
 
-#if 1	// set 0 if you need debug log, otherwise set 1
+#if 0	// set 0 if you need debug log, otherwise set 1
 	#ifndef LOG_NDEBUG
 		#define LOG_NDEBUG
 	#endif
@@ -17,6 +17,7 @@
 #endif
 
 #include "utilbase.h"
+#include "app_const.h"
 #include "ffmpeg_utils.h"
 
 #include "media_stream.h"
@@ -25,9 +26,9 @@ namespace serenegiant {
 namespace media {
 
 /*public*/
-MediaStream::MediaStream(AVCodecContext *_codec_context)
-:	codec_context(_codec_context),
-	stream(NULL) {
+MediaStream::MediaStream()
+:	stream(NULL),
+	first_pts_us(0) {
 
 	ENTER();
 
@@ -62,15 +63,11 @@ int MediaStream::init(AVFormatContext *format_context, const enum AVCodecID &cod
 	int result = -1;
 
 	if (!stream) {
+		first_pts_us = 0;
 		stream = avformat_new_stream(format_context, NULL);
 		if (LIKELY(stream)) {
 			stream->id = format_context->nb_streams - 1;
-			result = avcodec_parameters_from_context(stream->codecpar, codec_context);
-			if (UNLIKELY(result < 0)) {
-				LOGE("avcodec_parameters_from_context failed, err=%s", av_error(result).c_str());
-			} else {
-				result = init_stream(format_context, codec_id, stream);
-			}
+			result = init_stream(format_context, codec_id, stream);
 		} else {
 			LOGE("avformat_new_stream failed, errno=%d", errno);
 		}

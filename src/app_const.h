@@ -13,6 +13,8 @@
 #include <pthread.h>
 #include <map>
 #include <string>
+#include <typeinfo>
+#include <iostream>
 
 #include <zmq.h>
 #include <czmq.h>

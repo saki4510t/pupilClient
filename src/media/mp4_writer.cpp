@@ -5,7 +5,7 @@
  *      Author: saki
  */
 
-#if 1	// set 0 if you need debug log, otherwise set 1
+#if 0	// set 0 if you need debug log, otherwise set 1
 	#ifndef LOG_NDEBUG
 		#define LOG_NDEBUG
 	#endif
@@ -17,10 +17,12 @@
 #endif
 
 #include "utilbase.h"
+#include "app_const.h"
 #include "ffmpeg_utils.h"
 
 #include "media_stream.h"
 #include "video_stream.h"
+#include "h264_utils.h"
 #include "mp4_writer.h"
 
 namespace serenegiant {
@@ -36,20 +38,25 @@ Mp4Writer::Mp4Writer(const std::string &_file_name)
 
 	ENTER();
 
+	LOGV("filename=%s", file_name.c_str());
 	int result = avformat_alloc_output_context2(&format_context, NULL, NULL, file_name.c_str());
-	if (UNLIKELY(result < 0)) {
+	LOGV("avformat_alloc_output_context2 returned %d", result);
+	if (UNLIKELY((result < 0) || !format_context)) {
 		LOGW("failed to deduce output format from file extension, try mp4");
 		if (format_context) {
 			avformat_free_context(format_context);
 			format_context = NULL;
 		}
 		result = avformat_alloc_output_context2(&format_context, NULL, "mp4", file_name.c_str());
+		LOGV("avformat_alloc_output_context2 returned %d", result);
 		if (result < 0) {
 			LOGE("avformat_alloc_output_context2 failed, err=%s", av_error(result).c_str());
 		}
 	}
 
-	if (UNLIKELY(format_context)) {
+	if (LIKELY(format_context)) {
+		format = format_context->oformat;
+	} else {
 		LOGE("failed to create format context, result=%d", result);
 	}
 
@@ -98,22 +105,30 @@ int Mp4Writer::add(MediaStream *stream) {
 	if (LIKELY(stream)) {
 		int ix = find_stream(stream);
 		if (LIKELY(ix < 0)) {
+			LOGV("add new stream, detect stream type");
+			std::cout << typeid(*stream).name() << std::endl;
 			enum AVCodecID codec_id = AV_CODEC_ID_NONE;
-			if (dynamic_cast<VideoStream *>(stream)) {
+			switch (stream->stream_type()) {
+			case STREAM_VIDEO:
 				codec_id = format->video_codec;
-			} else {
+				break;
+			default:
 				LOGW("unknown MediaStream");
 			}
+			LOGV("init stream:codec_id=%d", codec_id);
 			result = stream->init(format_context, codec_id);
 			if (result >= 0) {
 				streams.push_back(stream);
 			} else {
+				LOGE("failed to init stream:result=%d", result);
 				SAFE_DELETE(stream);
 			}
 		} else {
 			LOGW("specific stream was already added");
 			result = ix;
 		}
+	} else {
+		LOGE("stream is null");
 	}
 ret:
 	RETURN(result, int);
@@ -138,6 +153,20 @@ int Mp4Writer::start() {
 				goto ret;
 			}
 		}
+		result = avformat_init_output(format_context, &option);
+		switch (result) {
+		case AVSTREAM_INIT_IN_WRITE_HEADER:
+			LOGV("AVSTREAM_INIT_IN_WRITE_HEADER");
+			break;
+		case AVSTREAM_INIT_IN_INIT_OUTPUT:
+			LOGV("AVSTREAM_INIT_IN_INIT_OUTPUT");
+			break;
+		default:
+			if (result < 0) {
+				LOGE("avformat_init_output failed, err=%s", av_error(result).c_str());
+			}
+		}
+		LOGI("avformat_init_output returned %d", result);
 		result = avformat_write_header(format_context, &option);
 		if (UNLIKELY(result < 0)) {
 			LOGE("avformat_write_header failed, err=%s", av_error(result).c_str());
@@ -158,6 +187,7 @@ void Mp4Writer::stop() {
 
 	is_running = false;
 	if (LIKELY(format_context) && !streams.empty()) {
+		LOGV("av_write_trailer");
 		av_write_trailer(format_context);
 		release();
 	}
@@ -175,16 +205,21 @@ int Mp4Writer::set_input_buffer(const int stream_index, uint8_t *nal_units,
 
 	MediaStream *stream = get_stream(stream_index);
 	if (LIKELY(stream)) {
-		AVPacket packet;
+		if (UNLIKELY(stream->first_pts_us <= 0)) {
+			stream->first_pts_us = presentation_time_us;
+		}
 
+		AVPacket packet;
 		av_init_packet(&packet);
+		packet.flags |= (get_vop_type_annexb(nal_units, bytes) >= 0 ? AV_PKT_FLAG_KEY : 0);
 		packet.data = nal_units;
 		packet.size = bytes;
-		packet.pts = presentation_time_us;
+		packet.pts = packet.dts = (presentation_time_us - stream->first_pts_us) / 100;
 		packet.stream_index = stream->stream->index;
 
-		result = av_interleaved_write_frame(format_context, &packet);
+//		log_packet(format_context, &packet);
 
+		result = av_interleaved_write_frame(format_context, &packet);
 	}
 
 	RETURN(result, int);

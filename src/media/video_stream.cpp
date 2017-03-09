@@ -5,7 +5,7 @@
  *      Author: saki
  */
 
-#if 1	// set 0 if you need debug log, otherwise set 1
+#if 0	// set 0 if you need debug log, otherwise set 1
 	#ifndef LOG_NDEBUG
 		#define LOG_NDEBUG
 	#endif
@@ -17,6 +17,12 @@
 #endif
 
 #include "utilbase.h"
+#include "app_const.h"
+
+extern "C" {
+	#include <libavformat/avformat.h>
+	#include <libavcodec/avcodec.h>
+}
 
 #include "video_stream.h"
 
@@ -25,8 +31,11 @@ namespace media {
 
 #define STREAM_FRAME_RATE	25	/* 25 frames/s */
 
-VideoStream::VideoStream(AVCodecContext *codec_context)
-:	MediaStream(codec_context) {
+VideoStream::VideoStream(const AVCodecContext *_codec_context,
+		const uint32_t &_width, const uint32_t &_height)
+:	MediaStream(),
+	codec_context(_codec_context),
+	width(_width), height(_height) {
 
 	ENTER();
 
@@ -45,10 +54,26 @@ int VideoStream::init_stream(AVFormatContext *format_context,
 
 	ENTER();
 
+	int result = 0;
+
+	AVCodecParameters *params = stream->codecpar;
+
+	params->codec_id = codec_id;
+	params->codec_type = AVMEDIA_TYPE_VIDEO;
+	params->width = width;
+	params->height = height;
+	const size_t sz = params->extradata_size = codec_context->extradata_size;
+	uint8_t *extradata = NULL;
+	if (sz) {
+		extradata = (uint8_t *)av_malloc(sz + AV_INPUT_BUFFER_PADDING_SIZE);
+		memcpy(extradata, codec_context->extradata, sz);
+	}
+	params->extradata = extradata;
+
 	// FIXME provide actual frame rate
 	stream->time_base = (AVRational) {1, STREAM_FRAME_RATE };
 
-	RETURN(0 ,int);
+	RETURN(result ,int);
 }
 
 } /* namespace media */

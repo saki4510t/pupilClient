@@ -26,6 +26,8 @@
 namespace serenegiant {
 namespace sensor {
 
+using namespace serenegiant::media;
+
 /*public*/
 UVCSensor::UVCSensor(const char *uuid, const char *name)
 :	Sensor(SENSOR_UVC, uuid, name),
@@ -200,7 +202,8 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 				{
 					if (mp4_writer) {
 						if (UNLIKELY(!mp4_writer->isRunning())) {
-							video_stream_index = mp4_writer->add(new media::VideoStream(h264->get_context()));
+							video_stream_index = mp4_writer->add(
+								new media::VideoStream(h264->get_context(), width, height));
 							mp4_writer->start();
 						}
 						if (video_stream_index >= 0) {
@@ -292,136 +295,6 @@ void UVCSensor::internal_stop_recording() {
 	}
 
 	EXIT();
-}
-
-/**
- * search AnnexB start marker (N[00] 00 00 01, N>=0)
- * 0: found, otherwise return -1
- * if payload is not null, set next position after annexB start marker (usually nal header)
- * even if this found start marker but has no payload, this return -1
- */
-static int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **payload) {
-	ENTER();
-
-	if (payload) {
-		*payload = NULL;
-	}
-	for (size_t i = 0; i < len - 4; i++) {	// to ignore null payload, use len-4 instead of len-3
-		// at least two 0x00 needs
-		if ((data[0] != 0x00) || (data[1] != 0x00)) {
-			data++;
-			continue;
-		}
-		// if third byte is 0x01, return ok
-		if (data[2] == 0x01) {
-			if (payload) {
-				*payload = data + 3;
-			}
-			RETURN(0, int);
-		}
-		data++;
-	}
-
-	RETURN(-1, int);
-}
-
-/**
- * check whether the frame is key frame
- * @return true is key frame, otherwise return false
- * */
-/*protected*/
-const bool UVCSensor::is_iframe(const size_t &size, const uint8_t *_data) {
-	ENTER();
-
-	bool result = false;
-
-	if (LIKELY(size > 3)) {
-		const uint8_t *data = _data;
-		const uint8_t *payload = NULL;
-		int sz = size;
-		LOGD("annexBマーカーを探す");
-		int ret = find_annexb(data, sz, &payload);
-		if (LIKELY(!ret)) {
-			LOGV("annexBマーカーが見つかった");
-			bool sps = false, pps = false;
-			int ix = payload - data;
-			sz -= ix;
-			for (uint32_t i = ix; i < size; i++) {
-				const nal_unit_type_t type = (nal_unit_type_t)(payload[0] & 0x1f);
-				switch (type) {
-				case NAL_UNIT_CODEC_SLICE_IDR:
-					LOGD("I frame");
-//					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
-//					LOGD("SPS/PPS?:%s", bin2hex(&payload[0], 128).c_str());
-					result = true;
-					goto ret;
-//					break;
-				case NAL_UNIT_SEQUENCE_PARAM_SET:
-				{
-					LOGD("SPSが見つかった...次のannexbマーカーを探す");
-//					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
-//					LOGI("SPS:%s", bin2hex(&payload[0], 128).c_str());
-					sps = true;
-					ret = find_annexb(&payload[1], sz - 1, &payload);
-					if (LIKELY(!ret)) {
-						i = payload - data;
-						sz = size - i;
-					} else {
-						goto end;
-					}
-					break;
-				}
-				case NAL_UNIT_PICTURE_PARAM_SET:
-				{
-					if (LIKELY(sps)) {
-						LOGD("PPSが見つかった...次のannexbマーカーを探す");
-//						LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
-//						LOGI("PPS:%s", bin2hex(&payload[0], 128).c_str());
-						pps = true;
-						ret = find_annexb(&payload[1], sz  -1, &payload);
-						if (LIKELY(!ret)) {
-							i = payload - data;
-							sz = size - i;
-						} else {
-							goto end;
-						}
-					}
-					break;
-				}
-				case NAL_UNIT_PICTURE_DELIMITER:
-				{
-					LOGD("IFrameじゃないけど1フレームを生成できるNALユニットの集まりの区切り");
-					result = true;
-					goto ret;
-				}
-				case NAL_UNIT_UNSPECIFIED:
-				{
-					ret = find_annexb(&payload[1], sz  -1, &payload);
-					if (LIKELY(!ret)) {
-						i = payload - data;
-						sz = size - i;
-					} else {
-						goto end;
-					}
-					break;
-				}
-				default:
-					// 何かAnnexBマーカーで始まるpayloadの時, SPS+PPSが見つかっていればIFrameとする
-					LOGV("type=%x", type);
-					result = sps && pps;
-					goto end;
-				} // end of switch (type)
-			} // end of for
-end:
-			result = sps && pps;
-		} else {
-			LOGD("no annexB start marker found");
-		}
-	} else {
-		LOGW("too short");
-	}
-ret:
-	RETURN(result, bool);
 }
 
 } /* namespace sensor */

@@ -36,12 +36,17 @@ int main(int argc, const char* argv[]) {
 
 	serenegiant::sensor::SensorManager manager;
 
+	// 入力した文字をすぐに引き渡す
 	system("stty -echo -icanon min 1 time 0");
+
 	manager.start();
 	for ( ; manager.isRunning() ; ) {
 		// 何か入力するまで実行する
 		const char c = getchar();
-		if ((c == 'r') || (c == 'R')) {
+		switch (c) {
+		case 'r':
+		case 'R':
+		{
 			// r|Rなら録画開始/停止
 			if (manager.isRecording()) {
 				manager.stop_recording();
@@ -50,9 +55,12 @@ int main(int argc, const char* argv[]) {
 			}
 			continue;
 		}
+		}
 		if (c != EOF) break;
 	}
 	manager.stop();
+
+	// コンソールの設定をデフォルトに戻す
 	system("stty echo -icanon min 1 time 0");
 
 	RETURN(0, int);

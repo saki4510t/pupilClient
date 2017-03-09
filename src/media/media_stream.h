@@ -29,13 +29,19 @@ extern "C" {
 namespace serenegiant {
 namespace media {
 
+typedef enum stream_type {
+	STREAM_UNKNOWN = 0,
+	STREAM_VIDEO,
+	STREAM_AUDIO,
+} stream_type_t;
+
 class Mp4Writer;
 
 class MediaStream {
 friend class Mp4Writer;
 private:
-	AVCodecContext *codec_context;
 	AVStream *stream;
+	int64_t first_pts_us;
 
 protected:
 	/**
@@ -48,10 +54,10 @@ protected:
 	virtual int init_stream(AVFormatContext *format_context,
 		const enum AVCodecID &codec_id, AVStream *stream) = 0;
 public:
-	MediaStream(AVCodecContext *codec_context);
+	MediaStream();
 	virtual ~MediaStream();
 	virtual void release();
-
+	virtual const stream_type_t stream_type() = 0;
 };
 
 } /* namespace media */
