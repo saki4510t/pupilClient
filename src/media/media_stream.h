@@ -29,12 +29,6 @@ extern "C" {
 namespace serenegiant {
 namespace media {
 
-typedef enum stream_type {
-	STREAM_UNKNOWN = 0,
-	STREAM_VIDEO,
-	STREAM_AUDIO,
-} stream_type_t;
-
 class Mp4Writer;
 
 class MediaStream {
@@ -58,7 +52,6 @@ public:
 	MediaStream();
 	virtual ~MediaStream();
 	virtual void release();
-	virtual const stream_type_t stream_type() = 0;
 	virtual int set_input_buffer(AVFormatContext *output_context,
 		const uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us);
 };

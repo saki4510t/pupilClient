@@ -21,9 +21,10 @@ protected:
 	virtual int init_stream(AVFormatContext *format_context,
 		const enum AVCodecID &codec_id, AVStream *stream);
 public:
+	// to ease to handle(get) codec specific data(sps/pps for h.264),
+	// pass AVCodecContext instance to this constructor
 	VideoStream(const AVCodecContext *codec_context, const uint32_t &width, const uint32_t &height);
 	virtual ~VideoStream();
-	virtual const stream_type_t stream_type() { return STREAM_VIDEO; };
 };
 
 } /* namespace media */

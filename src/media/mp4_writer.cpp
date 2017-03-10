@@ -96,22 +96,21 @@ int Mp4Writer::add(MediaStream *stream) {
 		int ix = find_stream(stream);
 		if (LIKELY(ix < 0)) {
 			LOGV("add new stream, detect stream type");
-			std::cout << typeid(*stream).name() << std::endl;
 			enum AVCodecID codec_id = AV_CODEC_ID_NONE;
-			switch (stream->stream_type()) {
-			case STREAM_VIDEO:
+			if (dynamic_cast<VideoStream *>(stream) != NULL) {
+				LOGV("VideoStream");
 				codec_id = format->video_codec;
-				break;
-			default:
+			} else {
 				LOGW("unknown MediaStream");
 			}
-			LOGV("init stream:codec_id=%d", codec_id);
-			result = stream->init(format_context, codec_id);
-			if (result >= 0) {
-				streams.push_back(stream);
-			} else {
-				LOGE("failed to init stream:result=%d", result);
-				SAFE_DELETE(stream);
+			if (LIKELY(codec_id != AV_CODEC_ID_NONE)) {
+				result = stream->init(format_context, codec_id);
+				if (result >= 0) {
+					streams.push_back(stream);
+				} else {
+					LOGE("failed to init stream:result=%d", result);
+					SAFE_DELETE(stream);
+				}
 			}
 		} else {
 			LOGW("specific stream was already added");
