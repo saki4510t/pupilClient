@@ -28,7 +28,8 @@ namespace media {
 /*public*/
 MediaStream::MediaStream()
 :	stream(NULL),
-	first_pts_us(0) {
+	first_pts_us(0),
+	frames(0) {
 
 	ENTER();
 
@@ -64,6 +65,7 @@ int MediaStream::init(AVFormatContext *format_context, const enum AVCodecID &cod
 
 	if (!stream) {
 		first_pts_us = 0;
+		frames = 0;
 		stream = avformat_new_stream(format_context, NULL);
 		if (LIKELY(stream)) {
 			stream->id = format_context->nb_streams - 1;
@@ -76,6 +78,36 @@ int MediaStream::init(AVFormatContext *format_context, const enum AVCodecID &cod
 	}
 
 	RETURN(result, int);
+}
+
+int MediaStream::set_input_buffer(AVFormatContext *output_context,
+	const uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us) {
+
+//	ENTER();
+
+	int result = 0;
+	AVPacket packet;
+
+	if (UNLIKELY(first_pts_us <= 0)) {
+		first_pts_us = presentation_time_us;
+	}
+
+	av_init_packet(&packet);
+	packet.flags |= (get_vop_type_annexb(nal_units, bytes) >= 0 ? AV_PKT_FLAG_KEY : 0);
+	packet.data = (uint8_t *)nal_units;
+	packet.size = bytes;
+	packet.pts = packet.dts = (presentation_time_us - first_pts_us) / 100;
+	packet.stream_index = stream->index;
+
+	frames++;
+	if (UNLIKELY((frames % 100) == 0)) {
+		LOGI("input %u frames", frames);
+		log_packet(output_context, &packet);
+	}
+
+	result = av_interleaved_write_frame(output_context, &packet);
+
+	return result; // RETURN(result, int);
 }
 
 } /* namespace media */

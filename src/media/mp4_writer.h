@@ -66,7 +66,8 @@ public:
 	virtual void stop();
 	inline const bool isRunning() const { return is_running; };
 
-	int set_input_buffer(const int stream_index, uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us);
+	int set_input_buffer(const int &stream_index,
+		const uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us);
 };
 
 } /* namespace media */

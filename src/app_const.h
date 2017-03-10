@@ -30,6 +30,10 @@
 #include "endian_unaligned.h"
 #include "timers.h"
 
+#include "binutils.h"
+#include "ffmpeg_utils.h"
+#include "h264_utils.h"
+
 using namespace android;
 using namespace rapidjson;
 

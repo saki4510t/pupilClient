@@ -56,19 +56,27 @@ int VideoStream::init_stream(AVFormatContext *format_context,
 
 	int result = 0;
 
+//	avcodec_parameters_from_context(stream->codecpar, codec_context);
+
 	AVCodecParameters *params = stream->codecpar;
 
 	params->codec_id = codec_id;
 	params->codec_type = AVMEDIA_TYPE_VIDEO;
 	params->width = width;
 	params->height = height;
-	const size_t sz = params->extradata_size = codec_context->extradata_size;
-	uint8_t *extradata = NULL;
-	if (sz) {
-		extradata = (uint8_t *)av_malloc(sz + AV_INPUT_BUFFER_PADDING_SIZE);
-		memcpy(extradata, codec_context->extradata, sz);
+	if (!params->extradata_size && !params->extradata) {
+		const size_t sz = params->extradata_size = codec_context->extradata_size;
+		uint8_t *extradata = NULL;
+		if (sz) {
+			extradata = (uint8_t *)av_malloc(sz + AV_INPUT_BUFFER_PADDING_SIZE);
+			memcpy(extradata, codec_context->extradata, sz);
+		}
+		params->extradata = extradata;
+	} else {
+		LOGD("extradata was already set:%s",
+			bin2hex(params->extradata,
+				(params->extradata_size > 32 ? 32 : params->extradata_size)).c_str());
 	}
-	params->extradata = extradata;
 
 	// FIXME provide actual frame rate
 	stream->time_base = (AVRational) {1, STREAM_FRAME_RATE };

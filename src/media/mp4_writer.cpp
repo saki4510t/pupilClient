@@ -18,11 +18,10 @@
 
 #include "utilbase.h"
 #include "app_const.h"
-#include "ffmpeg_utils.h"
 
 #include "media_stream.h"
 #include "video_stream.h"
-#include "h264_utils.h"
+
 #include "mp4_writer.h"
 
 namespace serenegiant {
@@ -48,7 +47,6 @@ Mp4Writer::Mp4Writer(const std::string &_file_name)
 			format_context = NULL;
 		}
 		result = avformat_alloc_output_context2(&format_context, NULL, "mp4", file_name.c_str());
-		LOGV("avformat_alloc_output_context2 returned %d", result);
 		if (result < 0) {
 			LOGE("avformat_alloc_output_context2 failed, err=%s", av_error(result).c_str());
 		}
@@ -78,15 +76,7 @@ Mp4Writer::~Mp4Writer() {
 void Mp4Writer::release() {
 	ENTER();
 
-	free_streams();
-	if (format_context) {
-		if (format && !(format->flags & AVFMT_NOFILE)) {
-			avio_closep(&format_context->pb);
-		}
-		avformat_free_context(format_context);
-		format_context = NULL;
-		format = NULL;
-	}
+	stop();
 
 	EXIT();
 }
@@ -145,7 +135,9 @@ int Mp4Writer::start() {
 		goto ret;
 	}
 	if (LIKELY(!streams.empty())) {
-		// FIXME do something
+
+		av_dump_format(format_context, 0, file_name.c_str(), 1);
+
 		if (format && !(format->flags & AVFMT_NOFILE)) {
 			result = avio_open(&format_context->pb, file_name.c_str(), AVIO_FLAG_WRITE);
 			if (UNLIKELY(result < 0)) {
@@ -153,20 +145,7 @@ int Mp4Writer::start() {
 				goto ret;
 			}
 		}
-		result = avformat_init_output(format_context, &option);
-		switch (result) {
-		case AVSTREAM_INIT_IN_WRITE_HEADER:
-			LOGV("AVSTREAM_INIT_IN_WRITE_HEADER");
-			break;
-		case AVSTREAM_INIT_IN_INIT_OUTPUT:
-			LOGV("AVSTREAM_INIT_IN_INIT_OUTPUT");
-			break;
-		default:
-			if (result < 0) {
-				LOGE("avformat_init_output failed, err=%s", av_error(result).c_str());
-			}
-		}
-		LOGI("avformat_init_output returned %d", result);
+
 		result = avformat_write_header(format_context, &option);
 		if (UNLIKELY(result < 0)) {
 			LOGE("avformat_write_header failed, err=%s", av_error(result).c_str());
@@ -185,44 +164,41 @@ ret:
 void Mp4Writer::stop() {
 	ENTER();
 
-	is_running = false;
-	if (LIKELY(format_context) && !streams.empty()) {
-		LOGV("av_write_trailer");
-		av_write_trailer(format_context);
-		release();
+	if (isRunning()) {
+		is_running = false;
+		if (LIKELY(format_context) && !streams.empty()) {
+			LOGV("av_write_trailer");
+			av_write_trailer(format_context);
+
+		}
+	}
+	free_streams();
+	if (format_context) {
+		if (format && !(format->flags & AVFMT_NOFILE)) {
+			avio_closep(&format_context->pb);
+		}
+		avformat_free_context(format_context);
+		format_context = NULL;
+		format = NULL;
 	}
 
 	EXIT();
 }
 
 /*public*/
-int Mp4Writer::set_input_buffer(const int stream_index, uint8_t *nal_units,
-	const size_t &bytes, const int64_t &presentation_time_us) {
+int Mp4Writer::set_input_buffer(const int &stream_index,
+	const uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us) {
 
-	ENTER();
+//	ENTER();
 
 	int result = -1;
 
 	MediaStream *stream = get_stream(stream_index);
 	if (LIKELY(stream)) {
-		if (UNLIKELY(stream->first_pts_us <= 0)) {
-			stream->first_pts_us = presentation_time_us;
-		}
-
-		AVPacket packet;
-		av_init_packet(&packet);
-		packet.flags |= (get_vop_type_annexb(nal_units, bytes) >= 0 ? AV_PKT_FLAG_KEY : 0);
-		packet.data = nal_units;
-		packet.size = bytes;
-		packet.pts = packet.dts = (presentation_time_us - stream->first_pts_us) / 100;
-		packet.stream_index = stream->stream->index;
-
-//		log_packet(format_context, &packet);
-
-		result = av_interleaved_write_frame(format_context, &packet);
+		result = stream->set_input_buffer(format_context, nal_units, bytes, presentation_time_us);
 	}
 
-	RETURN(result, int);
+	return result; // RETURN(result, int);
 }
 
 /*private*/
@@ -262,7 +238,7 @@ void Mp4Writer::free_streams() {
 
 /*private*/
 MediaStream *Mp4Writer::get_stream(const int &index) {
-	ENTER();
+//	ENTER();
 
 	MediaStream *result = NULL;
 
@@ -270,7 +246,7 @@ MediaStream *Mp4Writer::get_stream(const int &index) {
 		result = streams[index];
 	}
 
-	RET(result);
+	return result; // RET(result);
 }
 
 } /* namespace media */

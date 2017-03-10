@@ -42,6 +42,7 @@ friend class Mp4Writer;
 private:
 	AVStream *stream;
 	int64_t first_pts_us;
+	uint32_t frames;
 
 protected:
 	/**
@@ -58,6 +59,8 @@ public:
 	virtual ~MediaStream();
 	virtual void release();
 	virtual const stream_type_t stream_type() = 0;
+	virtual int set_input_buffer(AVFormatContext *output_context,
+		const uint8_t *nal_units, const size_t &bytes, const int64_t &presentation_time_us);
 };
 
 } /* namespace media */
