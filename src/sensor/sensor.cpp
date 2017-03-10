@@ -171,6 +171,7 @@ int Sensor::start(/*void *_zmq_context,*/
 		result = pthread_create(&zmq_thread, NULL, zmq_thread_func, (void *) this);
 
 		if (UNLIKELY(result)) {
+			LOGE("pthread_create failed,errno=%d", errno);
 			stop();
 		}
 	} else {
