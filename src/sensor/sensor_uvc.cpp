@@ -203,7 +203,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 					if (mp4_writer) {
 						if (UNLIKELY(!mp4_writer->isRunning())) {
 							video_stream_index = mp4_writer->add(
-								new media::VideoStream(h264->get_context(), width, height));
+								new media::VideoStream(h264->get_context(), width, height, 15));
 							mp4_writer->start();
 						}
 						if (video_stream_index >= 0) {

@@ -53,6 +53,8 @@ void MediaStream::release() {
 
 	ENTER();
 
+	LOGI("total input %u frames", frames);
+
 	EXIT();
 }
 
@@ -87,6 +89,7 @@ int MediaStream::set_input_buffer(AVFormatContext *output_context,
 
 	int result = 0;
 	AVPacket packet;
+	static AVRational time_base = (AVRational){1, 1000};
 
 	if (UNLIKELY(first_pts_us <= 0)) {
 		first_pts_us = presentation_time_us;
@@ -96,14 +99,15 @@ int MediaStream::set_input_buffer(AVFormatContext *output_context,
 	packet.flags |= (get_vop_type_annexb(nal_units, bytes) >= 0 ? AV_PKT_FLAG_KEY : 0);
 	packet.data = (uint8_t *)nal_units;
 	packet.size = bytes;
-	packet.pts = packet.dts = (presentation_time_us - first_pts_us) / 100;
+	packet.pts = packet.dts = (presentation_time_us - first_pts_us) / 1000;
+	av_packet_rescale_ts(&packet, time_base, stream->time_base);
 	packet.stream_index = stream->index;
 
-	frames++;
 	if (UNLIKELY((frames % 100) == 0)) {
 		LOGI("input %u frames", frames);
 		log_packet(output_context, &packet);
 	}
+	frames++;
 
 	result = av_interleaved_write_frame(output_context, &packet);
 

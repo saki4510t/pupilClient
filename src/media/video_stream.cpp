@@ -29,13 +29,11 @@ extern "C" {
 namespace serenegiant {
 namespace media {
 
-#define STREAM_FRAME_RATE	25	/* 25 frames/s */
-
 VideoStream::VideoStream(const AVCodecContext *_codec_context,
-		const uint32_t &_width, const uint32_t &_height)
+	const uint32_t &_width, const uint32_t &_height, const int &_fps)
 :	MediaStream(),
 	codec_context(_codec_context),
-	width(_width), height(_height) {
+	width(_width), height(_height), fps(_fps) {
 
 	ENTER();
 
@@ -79,7 +77,7 @@ int VideoStream::init_stream(AVFormatContext *format_context,
 	}
 
 	// FIXME provide actual frame rate
-	stream->time_base = (AVRational) {1, STREAM_FRAME_RATE };
+	stream->time_base = (AVRational) {1, fps };
 
 	RETURN(result ,int);
 }

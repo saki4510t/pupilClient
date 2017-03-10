@@ -136,11 +136,13 @@ void SensorManager::remove_sensor_all() {
 
 	Mutex::Autolock lock(sensor_lock);
 
-	for (auto itr: sensors) {
-		Sensor *sensor = itr.second;
-		SAFE_DELETE(sensor);
+	if (!sensors.empty()) {
+		for (auto itr: sensors) {
+			Sensor *sensor = itr.second;
+			SAFE_DELETE(sensor);
+		}
+		sensors.clear();
 	}
-	sensors.clear();
 
 	EXIT();
 }
@@ -187,6 +189,8 @@ void SensorManager::remove_sensor_locked(
 void SensorManager::remove_sensor(
 	const std::string &node_uuid, const std::string &sensor_uuid) {
 
+	if (UNLIKELY(!isRunning())) EXIT();
+
 	Mutex::Autolock lock(sensor_lock);
 
 	remove_sensor_locked(node_uuid, sensor_uuid);
@@ -196,6 +200,8 @@ void SensorManager::remove_sensor(
 /*protected*/
 Sensor *SensorManager::get_sensor(
 	const std::string &node_uuid, const std::string &sensor_uuid) {
+
+	if (UNLIKELY(!isRunning())) RET(NULL);
 
 	ENTER();
 
@@ -218,6 +224,8 @@ Sensor *SensorManager::get_sensor(
 /*protected*/
 void SensorManager::add_sensor(const std::string &node_uuid, Sensor *sensor) {
 
+	if (UNLIKELY(!isRunning())) EXIT();
+
 	ENTER();
 
 	Mutex::Autolock lock(sensor_lock);
@@ -238,7 +246,11 @@ void SensorManager::add_sensor(const std::string &node_uuid, Sensor *sensor) {
 int SensorManager::handle_enter(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
 
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
+
 	ENTER();
+
+	// do nothing now
 
 	RETURN(0, int);
 }
@@ -246,6 +258,9 @@ int SensorManager::handle_enter(zyre_t *zyre, zyre_event_t *event,
 /*protected*/
 int SensorManager::handle_join(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
+
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
+
 	ENTER();
 
 	LOGD("join to %s", zyre_event_group(event));
@@ -257,9 +272,12 @@ int SensorManager::handle_join(zyre_t *zyre, zyre_event_t *event,
 int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name, Document &doc) {
 
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
+
 	ENTER();
 
 	int result = -1;
+
 	const char *sensor_name = NULL, *sensor_uuid = NULL, *sensor_type = NULL;
 	const char *notify = NULL, *command = NULL, *data = NULL;
 	Value::ConstMemberIterator itr = doc.FindMember("sensor_uuid");
@@ -335,6 +353,8 @@ int SensorManager::handle_attach(zyre_t *zyre, zyre_event_t *event,
 int SensorManager::handle_detach(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name, Document &doc) {
 
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
+
 	ENTER();
 
 	const char *sensor_uuid = NULL;
@@ -353,6 +373,8 @@ int SensorManager::handle_detach(zyre_t *zyre, zyre_event_t *event,
 /*protected*/
 int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
+
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
 
 	ENTER();
 
@@ -394,6 +416,8 @@ int SensorManager::handle_whisper(zyre_t *zyre, zyre_event_t *event,
 /*protected*/
 int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
+
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
 
 	ENTER();
 
@@ -438,6 +462,8 @@ int SensorManager::handle_shout(zyre_t *zyre, zyre_event_t *event,
 int SensorManager::handle_leave(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
 
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
+
 	ENTER();
 
 	LOGD("leave from %s", zyre_event_group(event));
@@ -450,6 +476,8 @@ int SensorManager::handle_leave(zyre_t *zyre, zyre_event_t *event,
 /*protected*/
 int SensorManager::handle_exit(zyre_t *zyre, zyre_event_t *event,
 	const char *node_uuid, const char *node_name) {
+
+	if (UNLIKELY(!isRunning())) RETURN(-1, int);
 
 	ENTER();
 
@@ -491,7 +519,7 @@ void SensorManager::zyre_run() {
 				zsock_t *which = (zsock_t *) zpoller_wait(poller, 100);
 				if (which == socket) {
 					zyre_event_t *event = zyre_event_new(node);
-					if (LIKELY(event)) {
+					if (LIKELY(isRunning() && event)) {
 						const char *event_type = zyre_event_type(event);
 						const char *node_uuid = zyre_event_peer_uuid(event);
 						const char *node_name = zyre_event_peer_name(event);

@@ -129,7 +129,7 @@ int Mp4Writer::start() {
 	ENTER();
 
 	int result = -1;
-	if (UNLIKELY(!format_context)) {
+	if (UNLIKELY(!format_context || !format)) {
 		LOGE("format context is null, already released?");
 		goto ret;
 	}
@@ -137,12 +137,15 @@ int Mp4Writer::start() {
 
 		av_dump_format(format_context, 0, file_name.c_str(), 1);
 
-		if (format && !(format->flags & AVFMT_NOFILE)) {
+		if (!(format->flags & AVFMT_NOFILE)) {
 			result = avio_open(&format_context->pb, file_name.c_str(), AVIO_FLAG_WRITE);
 			if (UNLIKELY(result < 0)) {
 				LOGE("avio_open failed, err=%s", av_error(result).c_str());
 				goto ret;
 			}
+		} else {
+			LOGE("format is null or no output file is specified.");
+			goto ret;
 		}
 
 		result = avformat_write_header(format_context, &option);
