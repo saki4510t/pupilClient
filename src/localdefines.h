@@ -9,7 +9,7 @@
 #define LOCALDEFINES_H_
 
 #ifndef LOG_TAG
-#define LOG_TAG "ffmpegDecoder"
+#define LOG_TAG "pupilClient"
 #endif
 
 #define THREAD_PRIORITY_DEFAULT			0

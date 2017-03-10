@@ -5,7 +5,7 @@
  *      Author: saki
  */
 
-#if 0	// set 0 if you need debug log, otherwise set 1
+#if 1	// set 0 if you need debug log, otherwise set 1
 	#ifndef LOG_NDEBUG
 		#define LOG_NDEBUG
 	#endif
