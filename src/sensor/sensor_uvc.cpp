@@ -184,9 +184,10 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 	}
 	ofs.write((const char *)data, size);
 
+	const bool is_iframe = get_vop_type_annexb(data, size) == 0;
 	if (need_wait_iframe) {
 		LOGD("waiting I-frame");
-		if (get_vop_type_annexb(data, size) == 0 /*is_iframe(data, size)*/) {
+		if (is_iframe /*is_iframe(data, size)*/) {
 			LOGI("I-frame found");
 			need_wait_iframe = false;
 		} else {
@@ -201,7 +202,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 				writer_lock.lock();
 				{
 					if (mp4_writer) {
-						if (UNLIKELY(!mp4_writer->isRunning())) {
+						if (UNLIKELY(!mp4_writer->isRunning() && is_iframe)) {
 							video_stream_index = mp4_writer->add(
 								new media::VideoStream(h264->get_context(), width, height, 15));
 							mp4_writer->start();
