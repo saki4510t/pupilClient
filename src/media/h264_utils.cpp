@@ -83,6 +83,7 @@ int get_first_vop_type_annexb(const uint8_t *data, const size_t &size) {
 			case 0x01:	result = 2; break;	// B-frame
 			case 0x61:	result = 1; break;	// P-frame
 			case 0x65:	result = 0; break;	// I-frame
+			case 0x69:	result = 0; break;	// AUD frame
 			case 0xb6: {
 				if (payload + 1 < data + size) {
 					result = (payload[1] & 0xc0) >> 6;
