@@ -49,12 +49,17 @@ typedef enum nal_unit_type {
 } nal_unit_type_t;
 
 int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **payload);
-nal_unit_type_t get_nal_type_annexb(const uint8_t *data, const size_t &len);
+nal_unit_type_t get_first_nal_type_annexb(const uint8_t *data, const size_t &len);
+/**
+ * get vop type of first nal unit
+ * @return negative: err, 0: I-frame, 1: P-frame, 2: B-frame, 3: S-frame
+ */
+int get_first_vop_type_annexb(const uint8_t *data, const size_t &size);
 /**
  * @return negative: err, 0: I-frame, 1: P-frame, 2: B-frame, 3: S-frame
  */
-int get_vop_type_annexb(const uint8_t *data, const size_t &len);
-const bool is_iframe(const size_t &size, const uint8_t *_data);
+int get_vop_type_annexb(const uint8_t *data, const size_t &size);
+const bool is_iframe(const uint8_t *data, const size_t &size);
 
 }	// namespace media
 }	// namespace serenegiant

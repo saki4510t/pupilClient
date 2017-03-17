@@ -186,7 +186,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 
 	if (need_wait_iframe) {
 		LOGD("waiting I-frame");
-		if (is_iframe(size, data)) {
+		if (get_vop_type_annexb(data, size) == 0 /*is_iframe(data, size)*/) {
 			LOGI("I-frame found");
 			need_wait_iframe = false;
 		} else {

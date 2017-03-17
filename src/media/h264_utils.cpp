@@ -28,13 +28,13 @@ namespace media {
  * if payload is not null, set next position after annexB start marker (usually nal header)
  * even if this found start marker but has no payload, this return -1
  */
-int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **payload) {
+int find_annexb(const uint8_t *data, const size_t &size, const uint8_t **payload) {
 	ENTER();
 
 	if (payload) {
 		*payload = NULL;
 	}
-	for (size_t i = 0; i < len - 4; i++) {	// to ignore null payload, use len-4 instead of len-3
+	for (size_t i = 0; i < size - 4; i++) {	// to ignore null payload, use len-4 instead of len-3
 		// at least two 0x00 needs
 		if ((data[0] != 0x00) || (data[1] != 0x00)) {
 			data++;
@@ -53,50 +53,92 @@ int find_annexb(const uint8_t *data, const size_t &len, const uint8_t **payload)
 	RETURN(-1, int);
 }
 
-nal_unit_type_t get_nal_type_annexb(const uint8_t *data, const size_t &len) {
+nal_unit_type_t get_first_nal_type_annexb(const uint8_t *data, const size_t &size) {
 
 	ENTER();
 
 	nal_unit_type_t result = NAL_UNIT_UNSPECIFIED;
-	for (size_t i = 0; i < len - 4; i++) {	// to ignore null payload, use len-4 instead of len-3
-		// at least two 0x00 needs
-		if ((data[0] != 0x00) || (data[1] != 0x00)) {
-			data++;
-			continue;
-		}
-		// if third byte is 0x01, return ok
-		if (data[2] == 0x01) {
-			result = (nal_unit_type_t)(data[3] & 0x1f);
-			break;
-		}
-		data++;
+	const uint8_t *payload = NULL;
+	int r = find_annexb(data, size, &payload);
+	if (!r) {
+		result = (nal_unit_type_t)(payload[0] & 0x1f);
 	}
 
 	RETURN(result, nal_unit_type_t);
 }
 
 /**
+ * get vop type of first nal unit
  * @return negative: err, 0: I-frame, 1: P-frame, 2: B-frame, 3: S-frame
  */
-int get_vop_type_annexb(const uint8_t *data, const size_t &len) {
+int get_first_vop_type_annexb(const uint8_t *data, const size_t &size) {
 	ENTER();
 
 	int result = -1;
-	const uint8_t *payload = NULL;
-	const int r = find_annexb(data, len, &payload);
-	if (!r) {
-		switch (payload[0]) {
-		case 0x01:	result = 2; break;	// B-frame
-		case 0x61:	result = 1; break;	// P-frame
-		case 0x65:	result = 0; break;	// I-frame
-		case 0xb6: {
-			if (payload + 1 < data + len) {
-				result = (payload[1] & 0xc0) >> 6;
+	if (LIKELY(size > 3)) {
+		const uint8_t *payload = NULL;
+		const int r = find_annexb(data, size, &payload);
+		if (!r) {
+			switch (payload[0]) {
+			case 0x01:	result = 2; break;	// B-frame
+			case 0x61:	result = 1; break;	// P-frame
+			case 0x65:	result = 0; break;	// I-frame
+			case 0xb6: {
+				if (payload + 1 < data + size) {
+					result = (payload[1] & 0xc0) >> 6;
+				}
+				break;
 			}
-			break;
-		}
+			}
 		}
 	}
+
+	RETURN(result, int);
+}
+
+/**
+ * get first found vop type, sps, pps and aud will be skipped
+ * @return negative: err, 0: I-frame, 1: P-frame, 2: B-frame, 3: S-frame
+ */
+int get_vop_type_annexb(const uint8_t *_data, const size_t &size) {
+	ENTER();
+
+	int result = -1;
+	if (LIKELY(size > 3)) {
+		const uint8_t *data = _data;
+		const uint8_t *payload = NULL;
+		int sz = size;
+		int ret = find_annexb(data, sz, &payload);
+		if (!ret) {
+			int ix = payload - data;
+			sz -= ix;
+			for (uint32_t i = ix; i < size; i++) {
+				switch (payload[0]) {
+				case 0x01:	result = 2; goto end;	// B-frame
+				case 0x61:	result = 1; goto end;	// P-frame
+				case 0x65:	result = 0; goto end;	// I-frame
+				case 0x69:	result = 0; goto end;	// AUD frame
+				case 0xb6: {
+					if (payload + 1 < data + size) {
+						result = (payload[1] & 0xc0) >> 6;
+						goto end;
+					}
+					break;
+				}
+				}
+//				LOGV("not a I/B/P/S frame, try to found next nal unit");
+				ret = find_annexb(&payload[1], sz - 1, &payload);
+				if (LIKELY(!ret)) {
+					i = payload - data;
+					sz = size - i;
+				} else {
+					goto end;
+				}
+			}
+		}
+	}
+
+end:
 	RETURN(result, int);
 }
 
@@ -104,7 +146,7 @@ int get_vop_type_annexb(const uint8_t *data, const size_t &len) {
  * check whether the frame is key frame
  * @return true is key frame, otherwise return false
  * */
-const bool is_iframe(const size_t &size, const uint8_t *_data) {
+const bool is_iframe(const uint8_t *_data, const size_t &size) {
 	ENTER();
 
 	bool result = false;
@@ -124,7 +166,7 @@ const bool is_iframe(const size_t &size, const uint8_t *_data) {
 				const nal_unit_type_t type = (nal_unit_type_t)(payload[0] & 0x1f);
 				switch (type) {
 				case NAL_UNIT_CODEC_SLICE_IDR:
-					LOGD("I frame");
+					LOGD("IDR frame");
 //					LOGI("ペイロード:%s", bin2hex(&data[0], 128).c_str());
 //					LOGD("SPS/PPS?:%s", bin2hex(&payload[0], 128).c_str());
 					result = true;
