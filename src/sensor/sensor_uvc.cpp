@@ -278,6 +278,7 @@ int UVCSensor::internal_start_recording(const std::string &file_name) {
 	if (UNLIKELY(!mp4_writer)) {
 		mp4_writer = new media::Mp4Writer(file_name);
 		need_wait_iframe = true;
+		video_stream_index = -1;
 	}
 
 	RETURN(result, int);
@@ -291,6 +292,7 @@ void UVCSensor::internal_stop_recording() {
 
 	Mutex::Autolock lock(writer_lock);
 
+	video_stream_index = -1;
 	if (mp4_writer) {
 		SAFE_DELETE(mp4_writer);
 	}
