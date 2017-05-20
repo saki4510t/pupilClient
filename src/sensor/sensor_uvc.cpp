@@ -212,8 +212,8 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 							mp4_writer->start();
 						}
 						if (video_stream_index >= 0) {
-							mp4_writer->set_input_buffer(video_stream_index, (uint8_t *)data, size,
-								frame_index++ * 33333);	// you can pass any index value/intervals as you want
+							mp4_writer->set_input_buffer(video_stream_index, (uint8_t *)data, size, frame_index);
+							frame_index += 33333;	// you can pass any index value/intervals as you want
 						}
 					}
 				}
