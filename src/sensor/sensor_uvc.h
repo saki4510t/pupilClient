@@ -34,6 +34,7 @@ private:
 	uint32_t skipped_frames;
 	size_t received_bytes;
 	nsecs_t start_time;
+	int64_t frame_index;
 
 	mutable Mutex writer_lock;
 	media::Mp4Writer *mp4_writer;

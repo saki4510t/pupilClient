@@ -41,6 +41,7 @@ UVCSensor::UVCSensor(const char *uuid, const char *name)
 	skipped_frames(0),
 	received_bytes(0),
 	start_time(0),
+	frame_index(0),
 	mp4_writer(NULL),
 	video_stream_index(-1) {
 
@@ -70,6 +71,7 @@ int UVCSensor::start(const char *command, const char *notify, const char *data) 
 	received_frames = error_frames = skipped_frames = 0;
 	received_bytes = 0;
 	start_time = systemTime();
+	frame_index = 0;
 	return result;
 }
 
@@ -198,7 +200,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 		}
 	}
 	if (LIKELY(h264 && h264->is_initialized())) {
-		result = h264->set_input_buffer((uint8_t *)data, size, presentation_time_s);
+		result = h264->set_input_buffer((uint8_t *)data, size, presentation_time_us);
 		if (!result) {
 			if (h264->is_frame_ready()) {
 				writer_lock.lock();
@@ -210,7 +212,8 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 							mp4_writer->start();
 						}
 						if (video_stream_index >= 0) {
-							mp4_writer->set_input_buffer(video_stream_index, (uint8_t *)data, size, presentation_time_us);
+							mp4_writer->set_input_buffer(video_stream_index, (uint8_t *)data, size,
+								frame_index++ * 33333);	// you can pass any index value/intervals as you want
 						}
 					}
 				}
