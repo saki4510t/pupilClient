@@ -43,11 +43,11 @@ protected:
 	virtual int handle_frame_data(const std::string &identity,
 		const publish_header_t &header, const size_t &size, const uint8_t *data);
 	int handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &height,
-		const size_t &size, const uint8_t *data, const int64_t &presentation_time_us);
+		const size_t &size, const uint8_t *data, const double &presentation_time_s);
 	int handle_frame_data_h264(const uint32_t &width, const uint32_t &height,
-		const size_t &size, const uint8_t *data, const int64_t &presentation_time_us);
+		const size_t &size, const uint8_t *data, const double &presentation_time_s);
 	int handle_frame_data_vp8(const uint32_t &width, const uint32_t &height,
-		const size_t &size, const uint8_t *data, const int64_t &presentation_time_us);
+		const size_t &size, const uint8_t *data, const double &presentation_time_s);
 	virtual int internal_start_recording(const std::string &file_name);
 	virtual void internal_stop_recording();
 public:

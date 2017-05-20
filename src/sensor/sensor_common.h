@@ -65,7 +65,7 @@ typedef struct mic_publish_header {
     uint32_t format_le;		// 0:PCM8, 1:PCM16
     uint32_t channel_le;
     uint32_t sequence_le;
-    int64_t presentation_time_us_le;
+    double presentation_time_s_le;
     uint32_t data_bytes_le;
     uint32_t reserved_le;
 } __attribute__ ((packed)) mic_publish_header_t;
@@ -75,7 +75,7 @@ typedef struct imu_publish_header {
     uint32_t format_le;		// always 0
     uint32_t channel_le;	// always 3
     uint32_t sequence_le;
-    int64_t presentation_time_us_le;
+    double presentation_time_s_le;
     uint32_t data_bytes_le;
     uint32_t reserved_le;
 } __attribute__ ((packed)) imu_publish_header_t;
@@ -86,7 +86,7 @@ typedef struct uvc_publish_header {
     uint32_t width_le;
     uint32_t height_le;
     uint32_t sequence_le;
-    int64_t presentation_time_us_le;
+    double presentation_time_s_le;
     uint32_t data_bytes_le;
     uint32_t reserved_le;
 } __attribute__ ((packed)) uvc_publish_header_t;

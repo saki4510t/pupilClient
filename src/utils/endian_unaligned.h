@@ -118,4 +118,11 @@ inline void htole16_unaligned(const uint16_t &s, uint8_t *p) {
     (p)[1] = (s) >> 8;
 }
 
+inline double letoh64_unaligned(const double *p) {
+	double result = 0;
+
+	*((uint64_t *)&result) = letoh64_unaligned((const uint64_t *)p);
+	return result;
+}
+
 #endif /* ENDIAN_UNALIGNED_H_ */

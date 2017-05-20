@@ -30,7 +30,7 @@
 namespace serenegiant {
 namespace sensor {
 
-const char *target_group = "pupil-mobile";
+const char *target_group = "pupil-mobile-v3";
 
 //================================================================================
 /*public*/

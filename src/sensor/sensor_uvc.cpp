@@ -96,7 +96,7 @@ int UVCSensor::handle_frame_data(const std::string &identity,
 	const uint32_t width = letoh32_unaligned(&header.uvc.width_le);
 	const uint32_t height = letoh32_unaligned(&header.uvc.height_le);
 	const uint32_t sequence = letoh32_unaligned(&header.uvc.sequence_le);
-	const int64_t presentation_time_us = letoh64_unaligned((const uint64_t *)&header.uvc.presentation_time_us_le);
+	const double presentation_time_s = letoh64_unaligned(&header.uvc.presentation_time_s_le);
 	const uint32_t data_bytes = letoh32_unaligned(&header.uvc.data_bytes_le);
 	const bool skipped = (last_sequence + 1) != sequence;
 	if (UNLIKELY(skipped)) {
@@ -106,15 +106,15 @@ int UVCSensor::handle_frame_data(const std::string &identity,
 	if (LIKELY((size > 0) && (size == data_bytes))) {
 		switch (format) {
 		case VIDEO_FRAME_FORMAT_MJPEG:
-			result = handle_frame_data_mjpeg(width, height, size, data, presentation_time_us);
+			result = handle_frame_data_mjpeg(width, height, size, data, presentation_time_s);
 			break;
 		case VIDEO_FRAME_FORMAT_H264:
 			need_wait_iframe |= skipped;
-			result = handle_frame_data_h264(width, height, size, data, presentation_time_us);
+			result = handle_frame_data_h264(width, height, size, data, presentation_time_s);
 			break;
 		case VIDEO_FRAME_FORMAT_VP8:
 			need_wait_iframe |= skipped;
-			result = handle_frame_data_vp8(width, height, size, data, presentation_time_us);
+			result = handle_frame_data_vp8(width, height, size, data, presentation_time_s);
 			break;
 		default:
 			LOGW("unexpected frame format:%02x", format);
@@ -138,7 +138,7 @@ int UVCSensor::handle_frame_data(const std::string &identity,
 
 /*protected*/
 int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &height,
-	const size_t &size, const uint8_t *data, const int64_t &presentation_time_us) {
+	const size_t &size, const uint8_t *data, const double &presentation_time_s) {
 
 	ENTER();
 
@@ -162,11 +162,13 @@ int UVCSensor::handle_frame_data_mjpeg(const uint32_t &width, const uint32_t &he
 
 /*protected*/
 int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &height,
-	const size_t &size, const uint8_t *data, const int64_t &presentation_time_us) {
+	const size_t &size, const uint8_t *data, const double &presentation_time_s) {
 
 	ENTER();
 
 	int result = 0;
+
+	int64_t presentation_time_us = (int64_t)(presentation_time_s * 1000000L);
 
 	if (UNLIKELY((h264_width != width) || (h264_height != height))) {
 		LOGI("video size changed, re-create decoder");
@@ -196,7 +198,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 		}
 	}
 	if (LIKELY(h264 && h264->is_initialized())) {
-		result = h264->set_input_buffer((uint8_t *)data, size, presentation_time_us);
+		result = h264->set_input_buffer((uint8_t *)data, size, presentation_time_s);
 		if (!result) {
 			if (h264->is_frame_ready()) {
 				writer_lock.lock();
@@ -244,7 +246,7 @@ int UVCSensor::handle_frame_data_h264(const uint32_t &width, const uint32_t &hei
 
 /*protected*/
 int UVCSensor::handle_frame_data_vp8(const uint32_t &width, const uint32_t &height,
-	const size_t &size, const uint8_t *data, const int64_t &presentation_time_us) {
+	const size_t &size, const uint8_t *data, const double &presentation_time_s) {
 
 	ENTER();
 
